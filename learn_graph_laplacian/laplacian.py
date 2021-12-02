@@ -255,6 +255,9 @@ def compute_Laplacian(input_dir, set, types, restrict_size) :
                 input = np.transpose(load_pickle(os.path.join(type_dir,file))) # Extract the [nx20] array of the .pkl file
                 
                 if (np.amax(input) - np.amin(input)) != 0 : # In some instances, the input signal is 0 for all t
+                    
+                    # OUTPUT amax and amin to see if single value or per row
+                    
                     input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Normalize the input
 
                 if restrict_size :
