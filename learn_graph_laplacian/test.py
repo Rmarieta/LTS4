@@ -204,8 +204,6 @@ def get_MSE(L_out, L_gt):
 
 if __name__ == "__main__":
 
-    print('\n\nSTART\n\n')
-
     seizure_types = ['BG','FNSZ','GNSZ']
 
     # for i = 2 => crashes with FNSZ ("./data/v1.5.2/raw_samples/dev/FNSZ/file_2_pid_00006546_type_FNSZ.pkl")
@@ -213,29 +211,58 @@ if __name__ == "__main__":
     files = ["./data/v1.5.2/raw_samples/dev/FNSZ/file_4_pid_00006546_type_FNSZ.pkl",
              "./data/v1.5.2/raw_samples/dev/BG/file_4_pid_00000258_type_BG.pkl",
              "./data/v1.5.2/raw_samples/dev/GNSZ/file_4_pid_00004671_type_GNSZ.pkl"]
-        
-    for file in files :
-        plt.figure()
-        input = np.transpose(load_pickle(file)) # Extract the [nx20] array of the .pkl file
-        print('\nShape input : ',input.shape,'\nMax : ',np.amax(input),', Min : ',np.amin(input),'\n')
-        
-        if (np.amax(input) - np.amin(input)) != 0 : # In some instances, the input signal is 0 for all t
-            
-            # OUTPUT amax and amin to see if single value or per row
-            
-            input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Normalize 
 
+    if False :
         
-        L, Y = gl_sig_model(inp_signal=input, max_iter=1, alpha=1, beta=1) # Higher beta = more connexions
-        print('\nShape of L : ',L.shape,'\n')
-        
-        A = -(L - np.diag(np.diag(L)))
-        A = A/np.amax(A.flatten())
-        print(A)
-        
+        for file in files :
+            plt.figure()
+            input = np.transpose(load_pickle(file)) # Extract the [nx20] array of the .pkl file
+            print('\nShape input : ',input.shape,'\n')
+
+            ## input = DCT(input) => of same length as input (discrete cosine transform), then keep first 20% of signal for ex. (or after 3000 time samples)
+
+            # Then A = -(L - diag(L)) (= adjacency matrix, which is the graph we are looking for)
+            # Normalise the A's => A = A/np.linalg.norm(A,'fro')
+            # Do the mean in the A if there's long samples
+            
+            if False :
+                input = (input/np.amax(input))[:15000]
+
+            L, Y = gl_sig_model(inp_signal=input, max_iter=1, alpha=.2, beta=5) # Higher beta = more connexions
+            print('\nShape of L : ',L.shape,'\n')
+            
+            A = -(L - np.diag(np.diag(L)))
+            A = A/np.amax(A.flatten())
+            #A = A/np.linalg.norm(A,'fro')
+            plt.imshow(A, cmap='gray')
+
+            # A is symmetrical => only keep half (without diagonal)
+            
+            # TRY ON GOOGLE COLLAB WITH THE SAMPLES with shape[0] > 28000
+
+            plt.colorbar()
+
+        plt.show()
     
-    print('\n\nDONE\n\n')
+    else :
+        
+        type_dir = r".\data\v1.5.2\raw_samples"
+
+        nb_over = 0
+        nb_tot = 0
+        thr = 20000
+
+        for root, dir, files in os.walk(type_dir) :
+            print('\nRoot : ',root,'\n')
+            for file in files :
+                pkl_file = os.path.join(root,file)
+                input = load_pickle(pkl_file)
+                #print('Shape : ',input.shape[1], f"({root[-8:]}), ({pkl_file[-40:]})")
+                if input.shape[1] > thr : nb_over += 1
+                nb_tot += 1
+
+        print(f"\nNumber of huge samples : {nb_over} on {nb_tot} samples\n")
 
     # Worked (25022) try_file = "./data/v1.5.2/raw_samples/dev/FNSZ/file_0_pid_00000258_type_FNSZ.pkl"
-    # try_file = "./data/v1.5.2/raw_samples/train/BG/file_4_pid_00006351_type_BG.pkl" # Worked (28514) 
+    try_file = "./data/v1.5.2/raw_samples/train/BG/file_4_pid_00006351_type_BG.pkl" # Worked (28514) 
     # Didn't work (33250) try_file = "./data/v1.5.2/raw_samples/train/GNSZ/file_2_pid_00001357_type_GNSZ.pkl"
