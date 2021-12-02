@@ -208,7 +208,7 @@ def gen_raw_seizure_pkl(args, anno_file):
     seizure_types = args.seizure_types # Add the background type
 
     # Create the directory where the raw seizure data will be extracted
-    save_data_dir = os.path.join(output_dir, 'v1.5.2', 'raw_samples')
+    save_data_dir = os.path.join(output_dir, 'v1.5.2', 'raw_3')
 
     print('\nCurrent working directory : ',os.getcwd(),'\n')
     print('\nSave_data_dir : ',save_data_dir,'\n')
