@@ -15,3 +15,4 @@ python data_preparation/build_data.py --output_dir '../../../home/rmarieta/LTS4/
 
 # To run : sbatch scitas_run/scratch_build_data.sh (in scratch/rmarieta/LTS4)
 # Output in home/rmarieta/LTS4/data/v1.5.2/raw_samples
+# To read the output file on the terminal (live) : tail -f cluster_output/build_data.out
