@@ -3,4 +3,6 @@ import matplotlib.pyplot as plt
 
 import numpy as np 
 
-print('\nCurrent directory : ',os.getcwd(),'\n')
+
+os.makedirs('../../../home/rmarieta/LTS4/data/v1.5.2/raw_samples')
+print('\nSuccess\n')
