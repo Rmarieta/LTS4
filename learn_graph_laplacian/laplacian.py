@@ -8,6 +8,8 @@ import collections
 import dill as pickle
 import progressbar
 import matplotlib.pyplot as plt
+import utils
+import time
 
 seizure_type_data = collections.namedtuple('seizure_type_data', ['patient_id','seizure_type', 'data'])
 
@@ -46,7 +48,7 @@ def load_pickle(file_path) :
     time_series_data = data.data
     return np.array(time_series_data)
 
-def gl_sig_model(inp_signal, max_iter, alpha, beta):
+def gl_sig_model(inp_signal, max_iter, alpha, beta, ignore_L):
     """
     Returns Output Signal Y, Graph Laplacian L
     """
@@ -74,7 +76,7 @@ def gl_sig_model(inp_signal, max_iter, alpha, beta):
         # Assert L is correctly learnt.
         # assert L.trace() == num_vertices
         assert np.allclose(L.trace(), num_vertices)
-        assert np.all(L - np.diag(np.diag(L)) <= 0)
+        if not ignore_L : assert np.all(L - np.diag(np.diag(L)) <= 0)
         assert np.allclose(np.dot(L, np.ones(num_vertices)), np.zeros(num_vertices))
         # print('All constraints satisfied')
         # Update Y
@@ -229,7 +231,10 @@ def get_f_score(prec, recall):
 def get_MSE(L_out, L_gt):
     return np.linalg.norm(L_out - L_gt, 'fro')
 
-def compute_Laplacian(input_dir, set, types, restrict_size) :
+def check_symmetric(a, tol=1e-8):
+    return np.all(np.abs(a-a.T) < tol)
+
+def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
 
     # np.random.seed(0)
     solvers.options['show_progress'] = False
@@ -237,47 +242,122 @@ def compute_Laplacian(input_dir, set, types, restrict_size) :
     # Create Laplacian dictionary and fill it up with the learned L's
     Laplacian_dict = collections.defaultdict(list)
 
-    for type in types :
-        type_dir = os.path.join(input_dir,set,type)
+    if True :
+        for szr_type in types :
+            type_dir = os.path.join(input_dir,set,szr_type)
 
-        for root, dir, files in os.walk(type_dir) :
+            for root, dir, files in os.walk(type_dir) :
+                
+                print('\nComputation of the graphs for',set+'/'+szr_type,'in progress...\n')
+                bar = progressbar.ProgressBar(maxval=len(files),
+                                            widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+                bar.start()
+                count = 0
+
+                for file in files :
+                    
+                    patient_id = file.split('_')[3]
+                    
+                    input = np.transpose(load_pickle(os.path.join(type_dir,file))) # Extract the [nx20] array of the .pkl file
+                    
+                    if restrict_size :
+                        input = input[:60000]
+    
+                    if (np.amax(input) - np.amin(input)) != 0 : # In some instances, the input signal is 0 for all t
+
+                        input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Normalize the input
+
+                    if True : 
+                        L, _ = gl_sig_model(inp_signal=input, max_iter=1, alpha=1, beta=5, ignore_L=ignore_L)
+
+                        # To get the adjacency matrix
+                        A = -(L - np.diag(np.diag(L)))
+                        A = A/np.amax(A.flatten())
+
+                        Laplacian_dict[szr_type].append((patient_id, A))
+                        """
+                        print('\nA :\n',np.around(A, decimals=3),'\n')
+                        print('\nL :\n',np.around(L/np.amax(L.flatten()), decimals=3),'\n')
+                        print('\nSYMMETRIC : ',check_symmetric(A*(A > 1e-3)),'\n')
+                        """
+
+
+                    else :
+                        A = utils.compute_A(input, dist_type='sqeuclidean', alpha=1, s=None, step=0.5,w0=None, maxit=100, rtol=1e-5, retall=False,verbosity='NONE')
+                        print('\nA :\n',np.around(A/np.amax(W.flatten()), decimals=3),'\n')
+
+                    #Laplacian_dict[szr_type].append((patient_id, L))
+
+                    count +=1
+                    bar.update(count)
+
+                bar.finish()
+    
+    else :
+        files = ['./data/v1.5.2/raw_samples/dev/FNSZ/file_4_pid_00006546_type_FNSZ.pkl']
+        
+        for file in files :
+
+            input = load_pickle(file)
+            print('\nShape input : ',input.shape,'\n')
             
-            print('\nComputation of the graphs for',set+'/'+type,'in progress...\n')
-            bar = progressbar.ProgressBar(maxval=len(files),
-                                        widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-            bar.start()
-            count = 0      
-
-            for file in files :
+            if (np.amax(input) - np.amin(input)) != 0 :
                 
-                patient_id = file.split('_')[3]
+                input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Normalize 
+            
+            tic_1 = time.perf_counter()
+            A_1 = utils.compute_A(X=input, alpha=1000, maxit=1000, verbosity='LOW')
+            toc_1 = time.perf_counter()
+            print('Computed in ',round(toc_1 - tic_1,5),'seconds')
+            A_1 = A_1/np.amax(A_1.flatten())
+            print('\nShape of A_1 : ',A_1.shape,'\n')
+            print('\nA_1 :\n',np.around(A_1, decimals=3),'\n')
+            print('\nSYMMETRIC : ',check_symmetric(A_1*(A_1 > 1e-3)),'\n')
 
-                input = np.transpose(load_pickle(os.path.join(type_dir,file))) # Extract the [nx20] array of the .pkl file
-                
-                if (np.amax(input) - np.amin(input)) != 0 : # In some instances, the input signal is 0 for all t
-                    
-                    # OUTPUT amax and amin to see if single value or per row
-                    
-                    input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Normalize the input
+            '''
+            import networkx as nx
+            import pygsp
+            N = 256 # Number of nodes
+            Ne = int(N * (N - 1) / 2) # number of edges
 
-                if restrict_size :
-                    input = input[:20000]
+            G = pygsp.graphs.Sensor(N)
+            W_gt = G.W.toarray()
+            pos = G.coords
+            G_nx = nx.from_numpy_matrix(W_gt)
 
-                print('\nInput length : ',len(input))
+            def s1(x, y): 
+                return np.sin((2 - x - y)**2) 
+            def s2(x, y): 
+                return np.cos((x + y)**2)
+            def s3(x, y): 
+                return (x - 0.5)**2 + (y - 0.5)**3 + x - y 
+            def s4(x, y): 
+                return np.sin(3 * ( (x - 0.5)**2 + (y - 0.5)**2 ) )
 
-                #L = np.array([[0.0, 1.0],[1.0, 0.0]])
-                L, Y = gl_sig_model(inp_signal=input, max_iter=1, alpha=0.1, beta=0.1)
+            X = 5 * np.array((s1(G.coords[:,0], G.coords[:,1]), 
+                    s2(G.coords[:,0], G.coords[:,1]), 
+                    s3(G.coords[:,0], G.coords[:,1]), 
+                    s4(G.coords[:,0], G.coords[:,1]))).T
+            
+            W, problem = utils.compute_A(X, dist_type='sqeuclidean', alpha=1, s=N, retall=True, verbosity='LOW')
+            print('\nW :\n',np.around(W/np.amax(W.flatten()), decimals=3)[:30,:30],'\n')
+            '''
+            '''
+            input = np.transpose(input)
 
-                # To get the adjacency matrix
-                A = -(L - np.diag(np.diag(L)))
-                A = A/np.amax(A.flatten())
-                
-                Laplacian_dict[type].append((patient_id, A))
+            tic_2 = time.perf_counter()
+            L, Y = gl_sig_model(inp_signal=input, max_iter=1, alpha=1, beta=5, ignore_L) # Higher beta = more connexions
+            toc_2 = time.perf_counter()
+            print('Computed in ',round(toc_2 - tic_2,5),'seconds')
+            A_2 = -(L - np.diag(np.diag(L)))
+            A_2 = A_2/np.amax(A_2.flatten())
+            print('\nA_2 :\n',np.around(A_2, decimals=3),'\n')
+            print('\nSYMMETRIC : ',check_symmetric(A_2*(A_2 > 1e-3)),'\n')
+            '''
 
-                count +=1
-                bar.update(count)
 
-            bar.finish()
+    # To get the graph back from the adjacency matrix :
+    # G = nx.from_numpy_matrix(W)
 
     return Laplacian_dict
 
@@ -296,6 +376,8 @@ def save_graphs(dict, output, set) :
 
 if __name__ == "__main__":
 
+    print('\n\nSTART\n\n')
+
     parser = argparse.ArgumentParser(description='Learn the graph laplacian matrix from the EEG samples')
     parser.add_argument('--data_dir', default='./data', help='path to the dataset')
     known_args, _ = parser.parse_known_args()
@@ -304,27 +386,36 @@ if __name__ == "__main__":
     parser.add_argument('--input_dir', default=os.path.join(data_dir,'v1.5.2/raw_samples'), help='path to the input for the Laplacian computation')
     parser.add_argument('--seizure_types',default=['BG','FNSZ','GNSZ'], help="types of seizures for which we compute the Laplacian (include 'BG' if needed)")
     parser.add_argument('--graph_dir', default=os.path.join(data_dir,'v1.5.2/graph_output'), help='path to the output of the Laplacian computation')
-    parser.add_argument('--restrict_size', default=True, help='retrict the size of the EEG recordings to avoid crashing')
+    parser.add_argument('--restrict_size', default=True, help='restrict the size of the EEG recordings to avoid crashing')
+    parser.add_argument('--ignore_L', default=True, help='ignore the assert in the Laplacian computation')
 
     args = parser.parse_args()
     seizure_types = args.seizure_types
     input_dir = args.input_dir
     graph_dir = args.graph_dir
     restrict_size = args.restrict_size
+    ignore_L = args.ignore_L
     
     # Check that the appropriate folders already exist and build/empty the output folders
     build_dir(input_dir, ['dev','train'], seizure_types, graph_dir)
-
-    # Learn the laplacian matrices and fill up a dictionary with the many graphs
-    Laplacian_dev_dict = compute_Laplacian(input_dir, 'dev', seizure_types, restrict_size)  
-    Laplacian_train_dict = compute_Laplacian(input_dir, 'train', seizure_types, restrict_size)  
     
+    """
+    # Learn the laplacian matrices and fill up a dictionary with the many graphs
+    Laplacian_dev_dict = compute_Laplacian(input_dir, 'dev', seizure_types, restrict_size, ignore_L)
+
     # Save the results into the output folders (dev and train) with one file per seizure type
     print('\n\nSaving the graphs as .npy files...\n')
     save_graphs(Laplacian_dev_dict, graph_dir, 'dev')
+    print('\n...Saving done\n\n')
+    """
+    # Same for the train dataset
+    Laplacian_train_dict = compute_Laplacian(input_dir, 'train', seizure_types, restrict_size, ignore_L)  
+    print('\n\nSaving the graphs as .npy files...\n')
     save_graphs(Laplacian_train_dict, graph_dir, 'train')
     print('\n...Saving done\n\n')
     
+    print('\n\nDONE\n\n')
+
     """
     # To load a graph matrix
     arr_filename = os.path.join(graph_dir,'dev','FNSZ','graph_1_pid_00006546_FNSZ.npy')

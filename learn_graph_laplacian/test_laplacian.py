@@ -210,9 +210,8 @@ if __name__ == "__main__":
 
     # for i = 2 => crashes with FNSZ ("./data/v1.5.2/raw_samples/dev/FNSZ/file_2_pid_00006546_type_FNSZ.pkl")
 
-    files = ["./data/v1.5.2/raw_samples/dev/FNSZ/file_4_pid_00006546_type_FNSZ.pkl",
-             "./data/v1.5.2/raw_samples/dev/BG/file_4_pid_00000258_type_BG.pkl",
-             "./data/v1.5.2/raw_samples/dev/GNSZ/file_4_pid_00004671_type_GNSZ.pkl"]
+    #files = ["./data/v1.5.2/raw_samples/dev/FNSZ/file_4_pid_00006546_type_FNSZ.pkl", "./data/v1.5.2/raw_samples/dev/BG/file_4_pid_00000258_type_BG.pkl", "./data/v1.5.2/raw_samples/dev/GNSZ/file_4_pid_00004671_type_GNSZ.pkl"]
+    files = ['./data/v1.5.2/raw_samples/dev/BG/file_725_pid_00009578_type_BG.pkl']
         
     for file in files :
         plt.figure()
@@ -224,15 +223,9 @@ if __name__ == "__main__":
             # OUTPUT amax and amin to see if single value or per row
             
             input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Normalize 
-
-        
+    
         L, Y = gl_sig_model(inp_signal=input, max_iter=1, alpha=1, beta=1) # Higher beta = more connexions
         print('\nShape of L : ',L.shape,'\n')
-        
-        A = -(L - np.diag(np.diag(L)))
-        A = A/np.amax(A.flatten())
-        print(A)
-        
     
     print('\n\nDONE\n\n')
 

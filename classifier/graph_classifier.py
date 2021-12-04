@@ -116,6 +116,16 @@ def classify(input_dir, szr_types, algo) :
     
 if __name__ == '__main__':
     
+    ################################################################
+
+    # WATCH OUT, MIGHT NEED TO CONVERT LAPLACIAN TO ADJACENCY MATRIX
+    # OR, COMPUTE THE ADJACENCY MATRIX BACK FROM THE LAPLACIAN
+
+    # A = -(L - np.diag(np.diag(L)))
+    # A = A/np.amax(A.flatten())
+
+    ################################################################
+
     implemented_algos = ['bayes','kNN','SVM','tree','logit']
 
     parser = argparse.ArgumentParser(description='Build the graph classifier')
