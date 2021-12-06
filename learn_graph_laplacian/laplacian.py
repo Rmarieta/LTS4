@@ -384,10 +384,10 @@ if __name__ == "__main__":
     data_dir = known_args.data_dir
 
     parser.add_argument('--input_dir', default=os.path.join(data_dir,'v1.5.2/raw_samples'), help='path to the input for the Laplacian computation')
-    parser.add_argument('--seizure_types',default=['BG','FNSZ','GNSZ'], help="types of seizures for which we compute the Laplacian (include 'BG' if needed)")
+    parser.add_argument('--seizure_types',default=['BG','FNSZ','GNSZ'], help="types of seizures for which we compute the Laplacian (include 'BG' if needed), in the form --seizure_types 'BG' 'FNSZ' 'GNSZ'", nargs="+")
     parser.add_argument('--graph_dir', default=os.path.join(data_dir,'v1.5.2/graph_output'), help='path to the output of the Laplacian computation')
-    parser.add_argument('--restrict_size', default=True, help='restrict the size of the EEG recordings to avoid crashing')
-    parser.add_argument('--ignore_L', default=True, help='ignore the assert in the Laplacian computation')
+    parser.add_argument('--restrict_size', default=True, help='restrict the size of the EEG recordings to avoid crashing', type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--ignore_L', default=True, help='ignore the assert in the Laplacian computation', type=lambda x: (str(x).lower() in ['true','1']))
 
     args = parser.parse_args()
     seizure_types = args.seizure_types

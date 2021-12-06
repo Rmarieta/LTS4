@@ -255,7 +255,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--base_dir', default='./data', help='path to seizure dataset')
     parser.add_argument('--output_dir', default='./data', help='path to output folder')
-    parser.add_argument('--seizure_types',default=['FNSZ','GNSZ'], help="types of seizures for the classification ('BG' not to be included)")
+    parser.add_argument('--seizure_types',default=['FNSZ','GNSZ'], help="types of seizures for the classification ('BG' not to be included), in the form --seizure_types 'FNSZ' 'GNSZ'", nargs="+")
 
     args = parser.parse_args()
     parser.print_help()

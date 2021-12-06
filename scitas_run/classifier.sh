@@ -11,6 +11,6 @@
 module load gcc/8.4.0
 module load python/3.7.7
 source ../rma_env/bin/activate
-python classifier/graph_classifier.py --graph_dir './data/v1.5.2/graph_1_5_60000' --algo 'logit'
+python -u classifier/graph_classifier.py --graph_dir './data/v1.5.2/graph_1_5_60000' --algo 'logit'
 
 # To run : sbatch scitas_run/classifier.sh (in home/rmarieta/LTS4)

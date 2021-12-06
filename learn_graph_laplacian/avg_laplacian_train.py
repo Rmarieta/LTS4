@@ -341,22 +341,14 @@ if __name__ == "__main__":
     ignore_L = args.ignore_L
 
     # Check that the appropriate folders already exist and build/empty the output folders
-    build_dir(input_dir, ['dev','train'], seizure_types, graph_dir)
+    build_dir(input_dir, ['train'], seizure_types, graph_dir)
     
-    # Learn the laplacian matrices and fill up a dictionary with the many graphs
-    Laplacian_dev_dict = compute_Laplacian(input_dir, 'dev', seizure_types, restrict_size, ignore_L)
-
-    # Save the results into the output folders (dev and train) with one file per seizure type
-    print('\n\nSaving the graphs as .npy files...\n')
-    save_graphs(Laplacian_dev_dict, graph_dir, 'dev')
-    print('\n...Saving done\n\n')
-    """
     # Same for the train dataset
     Laplacian_train_dict = compute_Laplacian(input_dir, 'train', seizure_types, restrict_size, ignore_L)  
     print('\n\nSaving the graphs as .npy files...\n')
     save_graphs(Laplacian_train_dict, graph_dir, 'train')
     print('\n...Saving done\n\n')
-    """
+    
     print('\n\nDONE\n\n')
 
     
