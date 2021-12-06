@@ -20,21 +20,34 @@ def load_graphs(input_dir, class_dict) :
 
     data, data_labels = [], [] # data containing the graphs and data_labels the associated seizure type labels
 
-    for root, dir, files in os.walk(input_dir) :
-        szr_type = root.split("\\")[-1]
-        if szr_type in class_dict.keys() : # Only consider the selected classes for the classification
-            szr_label = class_dict[szr_type]
+    for szr_type in class_dict.keys() :
+        szr_label = class_dict[szr_type]
+        for _, _, files in os.walk(os.path.join(input_dir,szr_type)) :
             for npy_file in files :
                 graph = np.load(os.path.join(input_dir,szr_type,npy_file))
                 data.append(graph.flatten()) # graph has to be flattened to be fed to the classifier
                 data_labels.append(szr_label)
 
+    """
+    for root, dir, files in os.walk(input_dir) :
+        print('Root :',root)
+        szr_type = root.split("/")[-1]
+        print('Type : ',szr_type)
+        if szr_type in class_dict.keys() : # Only consider the selected classes for the classification
+            print('\nIN\n')
+            szr_label = class_dict[szr_type]
+            for npy_file in files :
+                graph = np.load(os.path.join(input_dir,szr_type,npy_file))
+                print('Graph :\n',graph.shape,'\n')
+                data.append(graph.flatten()) # graph has to be flattened to be fed to the classifier
+                data_labels.append(szr_label)
+    """
     return np.array(data), np.array(data_labels)
 
-def train_test_data(input_dir, types) :
+def train_test_data(input_dir, class_dict) :
 
-    train, train_labels = load_graphs(os.path.join(input_dir,'train'), types)
-    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), types)
+    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict)
+    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict)
 
     return train, test, train_labels, test_labels
 
@@ -51,7 +64,7 @@ def classify(input_dir, szr_types, algo) :
     train, train_labels = shuffle(train, train_labels)
     test, test_labels = shuffle(test, test_labels)
 
-    if False :
+    if True :
         # Initialisation of the selected classification model
 
         if algo == 'bayes' : # Gaussian Naive Bayes
@@ -73,13 +86,13 @@ def classify(input_dir, szr_types, algo) :
 
         # Training of the classifier
         model.fit(train, train_labels)
-
+    
         # Prediction of the classes
         train_preds = model.predict(train)
         test_preds = model.predict(test)
         # Evaluate accuracy of the classifier
         print('\nPredictions (test dataset) :\n',test_preds,'\nGround truth labels :\n',test_labels,'\n')
-        print(f"Accuracy of the classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),3)} % \
+        print(f"Accuracy of the '{algo}' classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),3)} % \
             \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),3)} %")
     
     else :
@@ -99,6 +112,8 @@ def classify(input_dir, szr_types, algo) :
         cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
         fig.colorbar(im, cax=cbar_ax)
         """
+
+        """
         n, m = 3, 1
         fig, axes = plt.subplots(nrows=m,ncols=n)
         idx = [21,34,38]#[6,32,48]
@@ -113,6 +128,7 @@ def classify(input_dir, szr_types, algo) :
         fig.colorbar(im, cax=cbar_ax)
         
         plt.show()
+        """
     
 if __name__ == '__main__':
     
@@ -126,6 +142,8 @@ if __name__ == '__main__':
 
     ################################################################
 
+    print('\n\nSTART\n\n')
+
     implemented_algos = ['bayes','kNN','SVM','tree','logit']
 
     parser = argparse.ArgumentParser(description='Build the graph classifier')
@@ -133,19 +151,21 @@ if __name__ == '__main__':
     known_args, _ = parser.parse_known_args()
     data_dir = known_args.data_dir
 
-    parser.add_argument('--input_dir', default=os.path.join(data_dir,'v1.5.2/graph_output'), help='path to the computed graphs')
+    parser.add_argument('--graph_dir', default=os.path.join(data_dir,'v1.5.2/graph_output'), help='path to the computed graphs')
     parser.add_argument('--seizure_types',default=['BG','FNSZ','GNSZ'], help="types of seizures to include in the classification")
-    parser.add_argument('--classifier_algo',default='bayes', help="pick the classification algorithm in \
+    parser.add_argument('--algo',default='bayes', help="pick the classification algorithm in \
          the following : "+str(implemented_algos))
     args = parser.parse_args()
     #parser.print_help()
 
-    input_dir = args.input_dir
+    graph_dir = args.graph_dir
     szr_types = args.seizure_types
-    algo = args.classifier_algo
+    algo = args.algo
 
     if algo not in implemented_algos :
         print(f"The selected classification algorithm ('"+algo+"') is not available")
         exit()
 
-    classify(input_dir, szr_types, algo)
+    classify(graph_dir, szr_types, algo)
+
+    print('\n\nDONE\n\n')

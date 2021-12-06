@@ -2,7 +2,7 @@
 #SBATCH --chdir /home/rmarieta/LTS4
 #SBATCH --nodes 1
 #SBATCH --ntasks 1
-#SBATCH --cpus-per-task 1
+#SBATCH --cpus-per-task 2
 #SBATCH --mem 40000
 #SBATCH --time 20:30:00 
 #SBATCH --output ./cluster_output/lapl.out
