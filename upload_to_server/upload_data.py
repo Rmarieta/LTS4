@@ -11,7 +11,7 @@ ssh -X rmarieta@fidis.epfl.ch
 
 Run the following command (from local device) to copy the script from local to remote (upload_data.py and run.sh will be in /home/rmarieta/)
 scp upload_data.py run.sh rmarieta@fidis.epfl.ch:~/
-To transfer a .tar file from the cluster to the local device
+To transfer a .tar file from the cluster to the local device (on local)
 scp rmarieta@fidis.epfl.ch:~/LTS4/data/v1.5.2/data.tar .
 To unpack it :
 tar -xvf data.tar

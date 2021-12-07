@@ -4,13 +4,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from matplotlib.colors import ListedColormap
+import seaborn as sn
+import pandas as pd
 
 from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
@@ -25,6 +27,9 @@ def load_graphs(input_dir, class_dict) :
         for _, _, files in os.walk(os.path.join(input_dir,szr_type)) :
             for npy_file in files :
                 graph = np.load(os.path.join(input_dir,szr_type,npy_file))
+
+                graph = graph[np.triu_indices(20, k = 1)]
+
                 data.append(graph.flatten()) # graph has to be flattened to be fed to the classifier
                 data_labels.append(szr_label)
 
@@ -81,7 +86,7 @@ def classify(input_dir, szr_types, algo) :
             model = DecisionTreeClassifier()
 
         else : # Multinomial logistic regression (algo == 'logit')
-            model = LogisticRegression(multi_class='multinomial', solver='lbfgs')
+            model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000)
         
 
         # Training of the classifier
@@ -91,9 +96,23 @@ def classify(input_dir, szr_types, algo) :
         train_preds = model.predict(train)
         test_preds = model.predict(test)
         # Evaluate accuracy of the classifier
-        print('\nPredictions (test dataset) :\n',test_preds,'\nGround truth labels :\n',test_labels,'\n')
-        print(f"Accuracy of the '{algo}' classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),3)} % \
-            \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),3)} %")
+        print('\nPredictions (test dataset) :\n',test_preds[:10],'\nGround truth labels :\n',test_labels[:10],'\n')
+        print(f"Accuracy of the '{algo}' classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),2)} % \
+            \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} %")
+
+        C = confusion_matrix(test_labels,test_preds)
+        #disp = ConfusionMatrixDisplay(confusion_matrix=C)
+        #disp.plot()
+
+        df_cm = pd.DataFrame(C, index=szr_types, columns=szr_types)
+
+        plt.figure(figsize=(5,4))
+        #sn.set(font_scale=1.4) # for label size
+        sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g') # font size
+        plt.title(f'Confusion matrix ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)')
+        plt.ylabel('True label'); plt.xlabel('Predicted label')
+        plt.tight_layout()
+        plt.show()
     
     else :
         
