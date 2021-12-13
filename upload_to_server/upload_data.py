@@ -8,7 +8,11 @@ Plan :
 To connect to the cluster, run :
 ssh -X rmarieta@fidis.epfl.ch
 
+tar -zcvf graph_chopped.tar ./graph_chopped_1_5
 
+
+To build a .tar :
+tar -zcvf graph.tar ./graph_1_5
 Run the following command (from local device) to copy the script from local to remote (upload_data.py and run.sh will be in /home/rmarieta/)
 scp upload_data.py run.sh rmarieta@fidis.epfl.ch:~/
 To transfer a .tar file from the cluster to the local device (on local)

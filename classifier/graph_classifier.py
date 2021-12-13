@@ -33,20 +33,6 @@ def load_graphs(input_dir, class_dict) :
                 data.append(graph.flatten()) # graph has to be flattened to be fed to the classifier
                 data_labels.append(szr_label)
 
-    """
-    for root, dir, files in os.walk(input_dir) :
-        print('Root :',root)
-        szr_type = root.split("/")[-1]
-        print('Type : ',szr_type)
-        if szr_type in class_dict.keys() : # Only consider the selected classes for the classification
-            print('\nIN\n')
-            szr_label = class_dict[szr_type]
-            for npy_file in files :
-                graph = np.load(os.path.join(input_dir,szr_type,npy_file))
-                print('Graph :\n',graph.shape,'\n')
-                data.append(graph.flatten()) # graph has to be flattened to be fed to the classifier
-                data_labels.append(szr_label)
-    """
     return np.array(data), np.array(data_labels)
 
 def train_test_data(input_dir, class_dict) :
@@ -158,6 +144,8 @@ if __name__ == '__main__':
 
     # A = -(L - np.diag(np.diag(L)))
     # A = A/np.amax(A.flatten())
+
+    # Run : python .\classifier\graph_classifier.py --graph_dir './data/v1.5.2/graph_avg_1_5' --seizure_types 'FNSZ' 'GNSZ' --algo 'logit'
 
     ################################################################
 
