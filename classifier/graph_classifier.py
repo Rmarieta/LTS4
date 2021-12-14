@@ -17,6 +17,8 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
 
 def load_graphs(input_dir, class_dict) :
 
@@ -42,7 +44,7 @@ def train_test_data(input_dir, class_dict) :
 
     return train, test, train_labels, test_labels
 
-def classify(input_dir, szr_types, algo) :
+def classify(input_dir, szr_types, algo, cross_val) :
 
     class_dict = {}
     for i, szr_type in enumerate(szr_types) :
@@ -74,32 +76,42 @@ def classify(input_dir, szr_types, algo) :
         else : # Multinomial logistic regression (algo == 'logit')
             model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000)
         
+        if not cross_val : # We train and test the model normally
+        
+            # Training of the classifier
+            model.fit(train, train_labels)
+        
+            # Prediction of the classes
+            train_preds = model.predict(train)
+            test_preds = model.predict(test)
+            # Evaluate accuracy of the classifier
+            print('\nPredictions (test dataset) :\n',test_preds[:10],'\nGround truth labels :\n',test_labels[:10],'\n')
+            print(f"Accuracy of the '{algo}' classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),2)} % \
+                \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} %")
 
-        # Training of the classifier
-        model.fit(train, train_labels)
-    
-        # Prediction of the classes
-        train_preds = model.predict(train)
-        test_preds = model.predict(test)
-        # Evaluate accuracy of the classifier
-        print('\nPredictions (test dataset) :\n',test_preds[:10],'\nGround truth labels :\n',test_labels[:10],'\n')
-        print(f"Accuracy of the '{algo}' classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),2)} % \
-            \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} %")
+            C = confusion_matrix(test_labels,test_preds)
+            #disp = ConfusionMatrixDisplay(confusion_matrix=C)
+            #disp.plot()
 
-        C = confusion_matrix(test_labels,test_preds)
-        #disp = ConfusionMatrixDisplay(confusion_matrix=C)
-        #disp.plot()
+            df_cm = pd.DataFrame(C, index=szr_types, columns=szr_types)
 
-        df_cm = pd.DataFrame(C, index=szr_types, columns=szr_types)
+            plt.figure(figsize=(5,4))
+            #sn.set(font_scale=1.4) # for label size
+            sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g') # font size
+            plt.title(f'Confusion matrix ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)')
+            plt.ylabel('True label'); plt.xlabel('Predicted label')
+            plt.tight_layout()
+            plt.show()
 
-        plt.figure(figsize=(5,4))
-        #sn.set(font_scale=1.4) # for label size
-        sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g') # font size
-        plt.title(f'Confusion matrix ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)')
-        plt.ylabel('True label'); plt.xlabel('Predicted label')
-        plt.tight_layout()
-        plt.show()
-    
+        else : # We compute the accuracy of the model with K-fold cross-validation
+            
+            k = 5
+            kf = KFold(n_splits=k, shuffle=True)
+            result = cross_val_score(model , train, train_labels, cv=kf)
+            
+            print(f"{k}-Fold Cross-Validation\n\nAccuracy of each split on training data with '{algo}' :\n{result}\n")
+            print(f"Avg accuracy: {result.mean()}")
+
     else :
         
         L = list(range(0,21,5))
@@ -145,7 +157,7 @@ if __name__ == '__main__':
     # A = -(L - np.diag(np.diag(L)))
     # A = A/np.amax(A.flatten())
 
-    # Run : python .\classifier\graph_classifier.py --graph_dir './data/v1.5.2/graph_avg_1_5' --seizure_types 'FNSZ' 'GNSZ' --algo 'logit'
+    # Run : python .\classifier\graph_classifier.py --graph_dir './data/v1.5.2/graph_avg_1_5' --seizure_types 'FNSZ' 'GNSZ' --algo 'logit' --cross_val True
 
     ################################################################
 
@@ -162,17 +174,19 @@ if __name__ == '__main__':
     parser.add_argument('--seizure_types',default=['BG','FNSZ','GNSZ'], help="types of seizures to include in the classification, in the form --seizure_types 'BG' 'FNSZ' 'GNSZ'", nargs="+")
     parser.add_argument('--algo',default='bayes', help="pick the classification algorithm in \
          the following : "+str(implemented_algos))
+    parser.add_argument('--cross_val',default=False, help="set to True (or 1) to perform a cross-validation", type=lambda x: (str(x).lower() in ['true','1']))
     args = parser.parse_args()
     #parser.print_help()
 
     graph_dir = args.graph_dir
     szr_types = args.seizure_types
     algo = args.algo
+    cross_val = args.cross_val
 
     if algo not in implemented_algos :
         print(f"The selected classification algorithm ('"+algo+"') is not available")
         exit()
 
-    classify(graph_dir, szr_types, algo)
+    classify(graph_dir, szr_types, algo, cross_val)
 
     print('\n\nDONE\n\n')
