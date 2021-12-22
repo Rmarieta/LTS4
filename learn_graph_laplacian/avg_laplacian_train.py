@@ -254,7 +254,7 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
             bar.start()
             count = 0
 
-            for file in files :
+            for file in files[:2] :
                 
                 patient_id = file.split('_')[3]
                 
@@ -262,12 +262,10 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
                 
                 if (np.amax(input) - np.amin(input)) != 0 : # In some instances, the input signal is 0 for all t, we discard these samples
 
-                    input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Normalize the input
+                    #input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Normalize the input
+                    print('Max value : ',np.amax(np.abs(input)))
 
-                    #####################################
-                    # POTENTIAL TO TAKE INTO ACCOUNT TIME VARIATION BY USING SMALLER CHOPS AND TAKING THE DIFFERENCE
-                    #####################################
-
+                """
                     if restrict_size :
                         chop_idx = [0, chop_size]
                     else :
@@ -295,7 +293,8 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
                     # print('A :\n',np.around(A[:10,:10],decimals=3))
                     
                     Laplacian_dict[szr_type].append((patient_id, A))
-
+                
+                """
                 count +=1
                 bar.update(count)
 
@@ -346,7 +345,7 @@ if __name__ == "__main__":
     # Same for the train dataset
     Laplacian_train_dict = compute_Laplacian(input_dir, 'train', seizure_types, restrict_size, ignore_L)  
     print('\n\nSaving the graphs as .npy files...\n')
-    save_graphs(Laplacian_train_dict, graph_dir, 'train')
+    #save_graphs(Laplacian_train_dict, graph_dir, 'train')
     print('\n...Saving done\n\n')
     
     print('\n\nDONE\n\n')
