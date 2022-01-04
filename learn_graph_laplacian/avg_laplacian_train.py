@@ -254,7 +254,7 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
             bar.start()
             count = 0
 
-            for file in files :
+            for file in files[:2] :
                 
                 patient_id = file.split('_')[3]
                 
@@ -266,6 +266,7 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
 
                     input = input/np.amax(np.abs(input)) # Normalize the input
 
+                """
                     if restrict_size :
                         chop_idx = [0, chop_size]
                     else :
@@ -294,7 +295,8 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
                     # print('A :\n',np.around(A[:10,:10],decimals=3))
                     
                     Laplacian_dict[szr_type].append((patient_id, A))
-
+                
+                """
                 count +=1
                 bar.update(count)
 
@@ -345,7 +347,7 @@ if __name__ == "__main__":
     # Same for the train dataset
     Laplacian_train_dict = compute_Laplacian(input_dir, 'train', seizure_types, restrict_size, ignore_L) 
     print('\n\nSaving the graphs as .npy files...\n')
-    save_graphs(Laplacian_train_dict, graph_dir, 'train')
+    #save_graphs(Laplacian_train_dict, graph_dir, 'train')
     print('\n...Saving done\n\n')
     
     print('\n\nDONE\n\n')

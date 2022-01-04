@@ -10,6 +10,9 @@ ssh -X rmarieta@fidis.epfl.ch
 
 tar -zcvf graph_chopped.tar ./graph_chopped_1_5
 
+To download a module on the virtual environment :
+source ../rma_env/bin/activate
+pip install --no-cache-dir seaborn
 
 To build a .tar :
 tar -zcvf graph.tar ./graph_1_5
