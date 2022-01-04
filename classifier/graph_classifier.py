@@ -87,6 +87,7 @@ def classify(input_dir, szr_types, algo) :
             \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} %")
 
         C = confusion_matrix(test_labels,test_preds)
+        print(f'Confusion matrix :\n{C}\n')
         #disp = ConfusionMatrixDisplay(confusion_matrix=C)
         #disp.plot()
 
