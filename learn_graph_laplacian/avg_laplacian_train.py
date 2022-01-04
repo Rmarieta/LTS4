@@ -262,11 +262,9 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
                 
                 if (np.amax(input) - np.amin(input)) != 0 : # In some instances, the input signal is 0 for all t, we discard these samples
 
-                    input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Normalize the input
+                    #input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Standardise the input
 
-                    #####################################
-                    # POTENTIAL TO TAKE INTO ACCOUNT TIME VARIATION BY USING SMALLER CHOPS AND TAKING THE DIFFERENCE
-                    #####################################
+                    input = input/np.amax(np.abs(input)) # Normalize the input
 
                     if restrict_size :
                         chop_idx = [0, chop_size]
@@ -279,7 +277,7 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
 
                     for i in range(len(chop_idx)-1) :
 
-                        L, _ = gl_sig_model(inp_signal=input[chop_idx[i]:chop_idx[i+1]], max_iter=1, alpha=1, beta=5, ignore_L=ignore_L)
+                        L, _ = gl_sig_model(inp_signal=input[chop_idx[i]:chop_idx[i+1]], max_iter=3, alpha=1, beta=5, ignore_L=ignore_L)
 
                         # To get the adjacency matrix
                         A_tmp = -(L - np.diag(np.diag(L)))
@@ -289,7 +287,8 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L) :
                     
 
                     A = sum(A_list)/len(A_list) # Average the adjacency matrices                    
-                    A = A/np.amax(A.flatten()) # Normalise A
+                    
+                    #A = A/np.amax(A.flatten()) # Normalise A
                     
                     # Print the adjacency matrix
                     # print('A :\n',np.around(A[:10,:10],decimals=3))
@@ -344,7 +343,7 @@ if __name__ == "__main__":
     build_dir(input_dir, ['train'], seizure_types, graph_dir)
     
     # Same for the train dataset
-    Laplacian_train_dict = compute_Laplacian(input_dir, 'train', seizure_types, restrict_size, ignore_L)  
+    Laplacian_train_dict = compute_Laplacian(input_dir, 'train', seizure_types, restrict_size, ignore_L) 
     print('\n\nSaving the graphs as .npy files...\n')
     save_graphs(Laplacian_train_dict, graph_dir, 'train')
     print('\n...Saving done\n\n')
