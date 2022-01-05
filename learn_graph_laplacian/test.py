@@ -212,11 +212,13 @@ if __name__ == "__main__":
              "./data/v1.5.2/raw_samples/dev/BG/file_4_pid_00000258_type_BG.pkl",
              "./data/v1.5.2/raw_samples/dev/GNSZ/file_4_pid_00004671_type_GNSZ.pkl"]
 
+
+
     if False :
-        
+
         for file in files :
             plt.figure()
-            input = np.transpose(load_pickle(file)) # Extract the [nx20] array of the .pkl file
+            input = load_pickle(file) # Extract the [nx20] array of the .pkl file
             print('\nShape input : ',input.shape,'\n')
 
             ## input = DCT(input) => of same length as input (discrete cosine transform), then keep first 20% of signal for ex. (or after 3000 time samples)
@@ -228,8 +230,11 @@ if __name__ == "__main__":
             if False :
                 input = (input/np.amax(input))[:15000]
 
-            L, Y = gl_sig_model(inp_signal=input, max_iter=1, alpha=.2, beta=5) # Higher beta = more connexions
+            #L, Y = gl_sig_model(inp_signal=input, max_iter=1, alpha=.2, beta=5) # Higher beta = more connexions
+            
+            L = np.cov(input)
             print('\nShape of L : ',L.shape,'\n')
+            print('Sample :\n',np.maximum(np.around(L[:7,:7],2),0),'\n=> symmetric !\n')
             
             A = -(L - np.diag(np.diag(L)))
             A = A/np.amax(A.flatten())
@@ -242,27 +247,15 @@ if __name__ == "__main__":
 
             plt.colorbar()
 
-        plt.show()
-    
     else :
-        
-        type_dir = r".\data\v1.5.2\raw_samples"
 
-        nb_over = 0
-        nb_tot = 0
-        thr = 20000
+        files = ['./data/v1.5.2/graph_cov/dev/GNSZ/graph_0_pid_00010062_GNSZ.npy',
+        './data/v1.5.2/graph_cov/dev/GNSZ/graph_1_pid_00008479_GNSZ.npy',
+        './data/v1.5.2/graph_cov/dev/GNSZ/graph_2_pid_00006546_GNSZ.npy']
+        for F in files :
+                
+            graph = np.load(F)
+            print('\n',np.around(graph[:10,:10],decimals=3),'\n')
 
-        for root, dir, files in os.walk(type_dir) :
-            print('\nRoot : ',root,'\n')
-            for file in files :
-                pkl_file = os.path.join(root,file)
-                input = load_pickle(pkl_file)
-                #print('Shape : ',input.shape[1], f"({root[-8:]}), ({pkl_file[-40:]})")
-                if input.shape[1] > thr : nb_over += 1
-                nb_tot += 1
-
-        print(f"\nNumber of huge samples : {nb_over} on {nb_tot} samples\n")
-
-    # Worked (25022) try_file = "./data/v1.5.2/raw_samples/dev/FNSZ/file_0_pid_00000258_type_FNSZ.pkl"
-    try_file = "./data/v1.5.2/raw_samples/train/BG/file_4_pid_00006351_type_BG.pkl" # Worked (28514) 
-    # Didn't work (33250) try_file = "./data/v1.5.2/raw_samples/train/GNSZ/file_2_pid_00001357_type_GNSZ.pkl"
+    plt.show()
+    
