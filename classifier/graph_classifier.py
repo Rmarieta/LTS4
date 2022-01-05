@@ -20,7 +20,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
 
-def load_graphs(input_dir, class_dict) :
+def load_graphs(input_dir, class_dict, is_covariance) :
 
     data, data_labels = [], [] # data containing the graphs and data_labels the associated seizure type labels
 
@@ -31,26 +31,27 @@ def load_graphs(input_dir, class_dict) :
                 graph = np.load(os.path.join(input_dir,szr_type,npy_file))
 
                 graph = graph[np.triu_indices(20, k = 1)]
+                if is_covariance : graph = graph/np.amax(graph.flatten())
 
                 data.append(graph.flatten()) # graph has to be flattened to be fed to the classifier
                 data_labels.append(szr_label)
 
     return np.array(data), np.array(data_labels)
 
-def train_test_data(input_dir, class_dict) :
+def train_test_data(input_dir, class_dict, is_covariance) :
 
-    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict)
-    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict)
+    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict, is_covariance)
+    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict, is_covariance)
 
     return train, test, train_labels, test_labels
 
-def classify(input_dir, szr_types, algo, cross_val) :
+def classify(input_dir, szr_types, algo, cross_val, is_covariance) :
 
     class_dict = {}
     for i, szr_type in enumerate(szr_types) :
         class_dict[szr_type] = i
     
-    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict)
+    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_covariance)
 
     # Shuffle the datasets (if of any use ?)
     np.random.seed(2) # For reproducibility
@@ -90,6 +91,7 @@ def classify(input_dir, szr_types, algo, cross_val) :
                 \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} %")
 
             C = confusion_matrix(test_labels,test_preds)
+            print(f'Confusion matrix :\n{C}\n')
             #disp = ConfusionMatrixDisplay(confusion_matrix=C)
             #disp.plot()
 
@@ -112,32 +114,6 @@ def classify(input_dir, szr_types, algo, cross_val) :
             print(f"{k}-Fold Cross-Validation\n\nAccuracy of each split on training data with '{algo}' :\n{result}\n")
             print(f"Avg accuracy: {result.mean()}")
 
-        # Training of the classifier
-        model.fit(train, train_labels)
-    
-        # Prediction of the classes
-        train_preds = model.predict(train)
-        test_preds = model.predict(test)
-        # Evaluate accuracy of the classifier
-        print('\nPredictions (test dataset) :\n',test_preds[:10],'\nGround truth labels :\n',test_labels[:10],'\n')
-        print(f"Accuracy of the '{algo}' classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),2)} % \
-            \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} %")
-
-        C = confusion_matrix(test_labels,test_preds)
-        print(f'Confusion matrix :\n{C}\n')
-        #disp = ConfusionMatrixDisplay(confusion_matrix=C)
-        #disp.plot()
-
-        df_cm = pd.DataFrame(C, index=szr_types, columns=szr_types)
-
-        plt.figure(figsize=(5,4))
-        #sn.set(font_scale=1.4) # for label size
-        sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g') # font size
-        plt.title(f'Confusion matrix ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)')
-        plt.ylabel('True label'); plt.xlabel('Predicted label')
-        plt.tight_layout()
-        plt.show()
-    
     else :
         
         L = list(range(0,21,5))
@@ -201,6 +177,7 @@ if __name__ == '__main__':
     parser.add_argument('--algo',default='bayes', help="pick the classification algorithm in \
          the following : "+str(implemented_algos))
     parser.add_argument('--cross_val',default=False, help="set to True (or 1) to perform a cross-validation", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--is_cov',default=False, help="set to True (or 1) if the graphs used are cov matrices", type=lambda x: (str(x).lower() in ['true','1']))
     args = parser.parse_args()
     #parser.print_help()
 
@@ -208,11 +185,12 @@ if __name__ == '__main__':
     szr_types = args.seizure_types
     algo = args.algo
     cross_val = args.cross_val
+    is_covariance = args.is_cov
 
     if algo not in implemented_algos :
         print(f"The selected classification algorithm ('"+algo+"') is not available")
         exit()
 
-    classify(graph_dir, szr_types, algo, cross_val)
+    classify(graph_dir, szr_types, algo, cross_val, is_covariance)
 
     print('\n\nDONE\n\n')
