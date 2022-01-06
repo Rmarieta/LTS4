@@ -52,7 +52,7 @@ def load_pickle(file_path) :
 def check_symmetric(a, tol=1e-8):
     return np.all(np.abs(a-a.T) < tol)
 
-def low_pass(input, sampling_freq, cutoff_freq=100, order=5) :
+def low_pass(input, sampling_freq, cutoff_freq=30, order=5) :
 
     normalized_cutoff_freq = 2*cutoff_freq/sampling_freq
 
@@ -91,7 +91,7 @@ def compute_cov(input_dir, set, types) :
                 if (np.amax(input) - np.amin(input)) != 0 : # In some instances, the input signal is 0 for all t, we discard these samples
 
                     # Low-pass filter the signal
-                    input = low_pass(input, 250, 100, 5)
+                    input = low_pass(input=input, sampling_freq=250, cutoff_freq=30, order=5)
 
                     input = input/np.amax(np.abs(input)) # Normalize the input
 
