@@ -212,8 +212,6 @@ if __name__ == "__main__":
              "./data/v1.5.2/raw_samples/dev/BG/file_4_pid_00000258_type_BG.pkl",
              "./data/v1.5.2/raw_samples/dev/GNSZ/file_4_pid_00004671_type_GNSZ.pkl"]
 
-
-
     if False :
 
         for file in files :
@@ -247,6 +245,17 @@ if __name__ == "__main__":
 
             plt.colorbar()
 
+    if True :
+    
+        files = ["./data/v1.5.2/raw_samples/dev/FNSZ/file_4_pid_00006546_type_FNSZ.pkl",
+        "./data/v1.5.2/raw_samples/dev/GNSZ/file_4_pid_00004671_type_GNSZ.pkl"]
+        print('\nStart\n')
+        for F in files :
+            name = F.split('/')[-1][:-4]
+            input = load_pickle(F)
+            np.save(name+'.npy',input)
+            print('+1')
+        print('\nDone\n')
     else :
 
         files = ['./data/v1.5.2/graph_cov/dev/GNSZ/graph_0_pid_00010062_GNSZ.npy',
@@ -258,4 +267,3 @@ if __name__ == "__main__":
             print('\n',np.around(graph[:10,:10],decimals=3),'\n')
 
     plt.show()
-    

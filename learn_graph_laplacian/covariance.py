@@ -10,6 +10,7 @@ import progressbar
 import matplotlib.pyplot as plt
 import utils
 import time
+import scipy.signal
 
 seizure_type_data = collections.namedtuple('seizure_type_data', ['patient_id','seizure_type', 'data'])
 
@@ -51,6 +52,16 @@ def load_pickle(file_path) :
 def check_symmetric(a, tol=1e-8):
     return np.all(np.abs(a-a.T) < tol)
 
+def low_pass(input, sampling_freq, cutoff_freq=100, order=5) :
+
+    normalized_cutoff_freq = 2*cutoff_freq/sampling_freq
+
+    numerator_coeffs, denominator_coeffs = scipy.signal.butter(order, normalized_cutoff_freq)
+
+    filtered_signal = scipy.signal.lfilter(numerator_coeffs, denominator_coeffs, input)    
+
+    return filtered_signal
+
 def compute_cov(input_dir, set, types) :
 
     # np.random.seed(0)
@@ -78,6 +89,9 @@ def compute_cov(input_dir, set, types) :
                 input = load_pickle(os.path.join(type_dir,file)) # Extract the [nx20] array of the .pkl file
                 
                 if (np.amax(input) - np.amin(input)) != 0 : # In some instances, the input signal is 0 for all t, we discard these samples
+
+                    # Low-pass filter the signal
+                    input = low_pass(input, 250, 100, 5)
 
                     input = input/np.amax(np.abs(input)) # Normalize the input
 
