@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
@@ -31,7 +31,7 @@ def load_graphs(input_dir, class_dict, is_covariance) :
                 graph = np.load(os.path.join(input_dir,szr_type,npy_file))
 
                 # To convert to Laplacian (if intended)
-                graph = np.diag(graph*np.ones((graph.shape[0],1)))-graph
+                # graph = np.diag(graph*np.ones((graph.shape[0],1)))-graph
 
                 graph = graph[np.triu_indices(20, k = 1)]
 
@@ -88,10 +88,12 @@ def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot) :
         # Prediction of the classes
         train_preds = model.predict(train)
         test_preds = model.predict(test)
+        F1 = 100 * f1_score(test_labels, test_preds, average='weighted')
+
         # Evaluate accuracy of the classifier
-        print('\nPredictions (test dataset) :\n',test_preds[:10],'\nGround truth labels :\n',test_labels[:10],'\n')
         print(f"Accuracy of the '{algo}' classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),2)} % \
-            \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} %")
+            \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} % \
+            \nWeigthed F1-score : {round(F1,2)} %\n")
 
         C = confusion_matrix(test_labels,test_preds)
         print(f'Confusion matrix :\n{C}\n')
@@ -104,7 +106,7 @@ def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot) :
             plt.figure(figsize=(5,4))
             #sn.set(font_scale=1.4) # for label size
             sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g') # font size
-            plt.title(f'Confusion matrix ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)')
+            plt.title(f'Confusion matrix ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)\nWeighted F1-score : {round(F1,2)} %')
             plt.ylabel('True label'); plt.xlabel('Predicted label')
             plt.tight_layout()
             plt.show()
