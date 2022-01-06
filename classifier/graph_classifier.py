@@ -30,7 +30,11 @@ def load_graphs(input_dir, class_dict, is_covariance) :
             for npy_file in files :
                 graph = np.load(os.path.join(input_dir,szr_type,npy_file))
 
+                # To convert to Laplacian (if intended)
+                graph = np.diag(graph*np.ones((graph.shape[0],1)))-graph
+
                 graph = graph[np.triu_indices(20, k = 1)]
+
                 if is_covariance : graph = graph/np.amax(graph.flatten())
 
                 data.append(graph.flatten()) # graph has to be flattened to be fed to the classifier
@@ -117,17 +121,7 @@ def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot) :
     
 if __name__ == '__main__':
     
-    ################################################################
-
-    # WATCH OUT, MIGHT NEED TO CONVERT LAPLACIAN TO ADJACENCY MATRIX
-    # OR, COMPUTE THE ADJACENCY MATRIX BACK FROM THE LAPLACIAN
-
-    # A = -(L - np.diag(np.diag(L)))
-    # A = A/np.amax(A.flatten())
-
-    # Run : python .\classifier\graph_classifier.py --graph_dir './data/v1.5.2/graph_avg_1_5' --seizure_types 'FNSZ' 'GNSZ' --algo 'logit' --cross_val True
-
-    ################################################################
+    # Run : python .\classifier\graph_classifier.py --graph_dir './data/v1.5.2/graph_avg_1_5' --seizure_types 'FNSZ' 'GNSZ' --algo 'logit' --cross_val False
 
     print('\n\nSTART\n\n')
 
