@@ -45,7 +45,7 @@ def train_test_data(input_dir, class_dict, is_covariance) :
 
     return train, test, train_labels, test_labels
 
-def classify(input_dir, szr_types, algo, cross_val, is_covariance) :
+def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot) :
 
     class_dict = {}
     for i, szr_type in enumerate(szr_types) :
@@ -58,45 +58,45 @@ def classify(input_dir, szr_types, algo, cross_val, is_covariance) :
     train, train_labels = shuffle(train, train_labels)
     test, test_labels = shuffle(test, test_labels)
 
-    if True :
-        # Initialisation of the selected classification model
+    # Initialisation of the selected classification model
 
-        if algo == 'bayes' : # Gaussian Naive Bayes
-            # Supposes that all the features are independent (prediction can be poor when they're not which might be the case here)
-            model = GaussianNB()
+    if algo == 'bayes' : # Gaussian Naive Bayes
+        # Supposes that all the features are independent (prediction can be poor when they're not which might be the case here)
+        model = GaussianNB()
 
-        elif algo == 'kNN' : # k-Nearest Neighbours
-            model = KNeighborsClassifier(n_neighbors=3)
+    elif algo == 'kNN' : # k-Nearest Neighbours
+        model = KNeighborsClassifier(n_neighbors=3)
 
-        elif algo == 'SVM' : # Support vector machine
-            model = make_pipeline(StandardScaler(), SVC(gamma='auto'))
+    elif algo == 'SVM' : # Support vector machine
+        model = make_pipeline(StandardScaler(), SVC(gamma='auto'))
 
-        elif algo == 'tree' : # Decision tree
-            model = DecisionTreeClassifier()
+    elif algo == 'tree' : # Decision tree
+        model = DecisionTreeClassifier()
 
-        else : # Multinomial logistic regression (algo == 'logit')
-            model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000)
+    else : # Multinomial logistic regression (algo == 'logit')
+        model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000)
+    
+    if not cross_val : # We train and test the model normally
+    
+        # Training of the classifier
+        model.fit(train, train_labels)
+    
+        # Prediction of the classes
+        train_preds = model.predict(train)
+        test_preds = model.predict(test)
+        # Evaluate accuracy of the classifier
+        print('\nPredictions (test dataset) :\n',test_preds[:10],'\nGround truth labels :\n',test_labels[:10],'\n')
+        print(f"Accuracy of the '{algo}' classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),2)} % \
+            \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} %")
+
+        C = confusion_matrix(test_labels,test_preds)
+        print(f'Confusion matrix :\n{C}\n')
+        #disp = ConfusionMatrixDisplay(confusion_matrix=C)
+        #disp.plot()
+
+        df_cm = pd.DataFrame(C, index=szr_types, columns=szr_types)
         
-        if not cross_val : # We train and test the model normally
-        
-            # Training of the classifier
-            model.fit(train, train_labels)
-        
-            # Prediction of the classes
-            train_preds = model.predict(train)
-            test_preds = model.predict(test)
-            # Evaluate accuracy of the classifier
-            print('\nPredictions (test dataset) :\n',test_preds[:10],'\nGround truth labels :\n',test_labels[:10],'\n')
-            print(f"Accuracy of the '{algo}' classifier :\n- training dataset : {100*round(accuracy_score(train_labels, train_preds),2)} % \
-                \n- test dataset : {100*round(accuracy_score(test_labels, test_preds),2)} %")
-
-            C = confusion_matrix(test_labels,test_preds)
-            print(f'Confusion matrix :\n{C}\n')
-            #disp = ConfusionMatrixDisplay(confusion_matrix=C)
-            #disp.plot()
-
-            df_cm = pd.DataFrame(C, index=szr_types, columns=szr_types)
-
+        if plot :
             plt.figure(figsize=(5,4))
             #sn.set(font_scale=1.4) # for label size
             sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g') # font size
@@ -105,49 +105,15 @@ def classify(input_dir, szr_types, algo, cross_val, is_covariance) :
             plt.tight_layout()
             plt.show()
 
-        else : # We compute the accuracy of the model with K-fold cross-validation
-            
-            k = 5
-            kf = KFold(n_splits=k, shuffle=True)
-            result = cross_val_score(model , train, train_labels, cv=kf)
-            
-            print(f"{k}-Fold Cross-Validation\n\nAccuracy of each split on training data with '{algo}' :\n{result}\n")
-            print(f"Avg accuracy: {result.mean()}")
+    else : # We compute the accuracy of the model with K-fold cross-validation
+        
+        k = 5
+        kf = KFold(n_splits=k, shuffle=True)
+        result = cross_val_score(model , train, train_labels, cv=kf)
+        
+        print(f"{k}-Fold Cross-Validation\n\nAccuracy of each split on training data with '{algo}' :\n{result}\n")
+        print(f"Avg accuracy: {result.mean()}")
 
-    else :
-        
-        L = list(range(0,21,5))
-        """
-        n, m = 7, 7
-        fig, axes = plt.subplots(nrows=m,ncols=n)
-        
-        for i, graph in enumerate(train[:n*m]) :
-            im = axes.flatten()[i].imshow(np.reshape(graph,(20,20)),cmap='Reds')
-            axes.flatten()[i].set_title(szr_types[train_labels[i]]+str(i))
-            axes.flatten()[i].set_xticks(L)
-            axes.flatten()[i].set_yticks(L)
-
-        fig.subplots_adjust(right=0.8)
-        cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-        fig.colorbar(im, cax=cbar_ax)
-        """
-
-        """
-        n, m = 3, 1
-        fig, axes = plt.subplots(nrows=m,ncols=n)
-        idx = [21,34,38]#[6,32,48]
-        for i, graph in enumerate(train[idx]) :
-            im = axes.flatten()[i].imshow(np.reshape(graph,(20,20)),cmap='Reds')
-            axes.flatten()[i].set_title(szr_types[train_labels[idx[i]]])
-            axes.flatten()[i].set_xticks(L)
-            axes.flatten()[i].set_yticks(L)
-        
-        fig.subplots_adjust(right=0.8)
-        cbar_ax = fig.add_axes([0.85, 0.293, 0.05, 0.4])
-        fig.colorbar(im, cax=cbar_ax)
-        
-        plt.show()
-        """
     
 if __name__ == '__main__':
     
@@ -178,6 +144,8 @@ if __name__ == '__main__':
          the following : "+str(implemented_algos))
     parser.add_argument('--cross_val',default=False, help="set to True (or 1) to perform a cross-validation", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--is_cov',default=False, help="set to True (or 1) if the graphs used are cov matrices", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--plot',default=False, help="set to True if not on the cluster to plot the confusion matrix", type=lambda x: (str(x).lower() in ['true','1']))
+
     args = parser.parse_args()
     #parser.print_help()
 
@@ -186,11 +154,12 @@ if __name__ == '__main__':
     algo = args.algo
     cross_val = args.cross_val
     is_covariance = args.is_cov
+    plot = args.plot
 
     if algo not in implemented_algos :
         print(f"The selected classification algorithm ('"+algo+"') is not available")
         exit()
 
-    classify(graph_dir, szr_types, algo, cross_val, is_covariance)
+    classify(graph_dir, szr_types, algo, cross_val, is_covariance, plot)
 
     print('\n\nDONE\n\n')
