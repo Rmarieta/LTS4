@@ -103,10 +103,10 @@ def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot) :
         df_cm = pd.DataFrame(C, index=szr_types, columns=szr_types)
         
         if plot :
-            plt.figure(figsize=(5,4))
+            plt.figure(figsize=(4.3,4))
             #sn.set(font_scale=1.4) # for label size
-            sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g') # font size
-            plt.title(f'Confusion matrix ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)\nWeighted F1-score : {round(F1,2)} %')
+            sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g', cbar=False) # font size
+            plt.title(f'Confusion ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)\nWeighted F1-score : {round(F1,2)} %')
             plt.ylabel('True label'); plt.xlabel('Predicted label')
             plt.tight_layout()
             plt.show()
