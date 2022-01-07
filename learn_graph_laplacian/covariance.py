@@ -52,7 +52,7 @@ def load_pickle(file_path) :
 def check_symmetric(a, tol=1e-8):
     return np.all(np.abs(a-a.T) < tol)
 
-def low_pass(input, sampling_freq, cutoff_freq=30, order=5) :
+def low_pass(input, sampling_freq, cutoff_freq=100, order=5) :
 
     normalized_cutoff_freq = 2*cutoff_freq/sampling_freq
 
@@ -62,11 +62,10 @@ def low_pass(input, sampling_freq, cutoff_freq=30, order=5) :
 
     return filtered_signal
 
-def compute_cov(input_dir, set, types) :
+def compute_cov(input_dir, set, types, l_pass, chop) :
 
     # np.random.seed(0)
     solvers.options['show_progress'] = False
-    chop_size = 000
 
     # Create matrix dictionary and fill it up with the learned C's
     cov_dict = collections.defaultdict(list)
@@ -89,16 +88,28 @@ def compute_cov(input_dir, set, types) :
                 input = load_pickle(os.path.join(type_dir,file)) # Extract the [nx20] array of the .pkl file
                 
                 if (np.amax(input) - np.amin(input)) != 0 : # In some instances, the input signal is 0 for all t, we discard these samples
-
+                    
                     # Low-pass filter the signal
-                    input = low_pass(input=input, sampling_freq=250, cutoff_freq=30, order=5)
+                    if l_pass : input = low_pass(input=input, sampling_freq=250, cutoff_freq=50, order=5)
 
                     input = input/np.amax(np.abs(input)) # Normalize the input
 
-                    # Get the covariance matrix and ReLU
-                    C = np.maximum(np.cov(input),0)              
-                    
-                    cov_dict[szr_type].append((patient_id, C))
+                    if not chop :
+                        C = np.maximum(np.cov(input),0)
+                        cov_dict[szr_type].append((patient_id, C))
+
+                    else :
+                        chop_size = 250
+                        nb_sections = input.shape[1]//chop_size + 1 # Integer division
+                        # Define even sections to avoid having a graph computed from short section which can induce a bias in the averaged matrix
+                        chop_idx = np.linspace(0,input.shape[1],num=nb_sections+1).astype(int)
+
+                        for i in range(len(chop_idx)-1) :
+                            
+                            # Get the covariance matrix and ReLU
+                            C = np.maximum(np.cov(input[:,chop_idx[i]:chop_idx[i+1]]),0)
+
+                            cov_dict[szr_type].append((patient_id, C))
 
                 count +=1
                 bar.update(count)
@@ -134,23 +145,27 @@ if __name__ == "__main__":
     parser.add_argument('--input_dir', default=os.path.join(data_dir,'v1.5.2/raw_samples'), help='path to the input for the Laplacian computation')
     parser.add_argument('--seizure_types',default=['BG','FNSZ','GNSZ'], help="types of seizures for which we compute the Laplacian (include 'BG' if needed), in the form --seizure_types 'BG' 'FNSZ' 'GNSZ'", nargs="+")
     parser.add_argument('--graph_dir', default=os.path.join(data_dir,'v1.5.2/graph_output'), help='path to the output of the Laplacian computation')
+    parser.add_argument('--low_pass', default=True, help='low-pass the input before graph computation', type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--chop', default=False, help='to compute one graph per 1s sample', type=lambda x: (str(x).lower() in ['true','1']))
 
     args = parser.parse_args()
     seizure_types = args.seizure_types
     input_dir = args.input_dir
     graph_dir = args.graph_dir
+    l_pass = args.low_pass
+    chop = args.chop
 
     # Check that the appropriate folders already exist and build/empty the output folders
     build_dir(input_dir, ['dev','train'], seizure_types, graph_dir)
     
     # For the dev dataset
-    cov_dev_dict = compute_cov(input_dir, 'dev', seizure_types) 
+    cov_dev_dict = compute_cov(input_dir, 'dev', seizure_types, l_pass, chop) 
     print('\n\nSaving the graphs as .npy files...\n')
     save_graphs(cov_dev_dict, graph_dir, 'dev')
     print('\n...Saving done\n\n')
 
     # Same for the train dataset
-    cov_train_dict = compute_cov(input_dir, 'train', seizure_types) 
+    cov_train_dict = compute_cov(input_dir, 'train', seizure_types, l_pass, chop) 
     print('\n\nSaving the graphs as .npy files...\n')
     save_graphs(cov_train_dict, graph_dir, 'train')
     print('\n...Saving done\n\n')
