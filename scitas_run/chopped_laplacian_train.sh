@@ -3,7 +3,7 @@
 #SBATCH --nodes 1
 #SBATCH --ntasks 1
 #SBATCH --cpus-per-task 2
-#SBATCH --mem 80000
+#SBATCH --mem 100000
 #SBATCH --time 35:30:00 
 #SBATCH --output ./cluster_output/lapl_train.out
 
