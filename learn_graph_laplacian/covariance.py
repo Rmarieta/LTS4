@@ -66,7 +66,7 @@ def compute_cov(input_dir, set, types) :
 
     # np.random.seed(0)
     solvers.options['show_progress'] = False
-    chop_size = 000
+    chop_size = 40000
 
     # Create matrix dictionary and fill it up with the learned C's
     cov_dict = collections.defaultdict(list)
