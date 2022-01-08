@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import math
 import random
+import seaborn as sns
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
 
 
@@ -24,24 +25,23 @@ def load_graphs(input_dir, class_dict, is_cov) :
         for _, _, files in os.walk(os.path.join(input_dir,szr_type)) :
             for npy_file in files :
                 A = np.load(os.path.join(input_dir,szr_type,npy_file))
-
+                
                 # Normalise A (already normalised depending on the input)
                 A = A/np.amax(A.flatten())
                 if is_cov : 
                     L = torch.tensor(A).view(1,20,20)
                 else : 
                     L = torch.tensor(np.diag(A*np.ones((A.shape[0],1)))-A).view(1,20,20)
-                    #L = torch.tensor(A).view(1,20,20)
 
                 data.append(L)
                 data_labels.append(szr_label)
 
     return np.array(data), np.array(data_labels)
 
-def train_test_data(input_dir, class_dict) :
+def train_test_data(input_dir, class_dict, is_cov) :
 
-    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict)
-    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict)
+    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict, is_cov)
+    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict, is_cov)
 
     return train, test, train_labels, test_labels
 
@@ -94,10 +94,10 @@ class Net(nn.Module) :
         x = self.fc3(x)
         return F.softmax(x,dim=1)
 
-def train_model(CNN, trainloader, batch_size, optimizer, loss_criterion, gamma, nb_epochs) :
+def train_model(CNN, trainloader, batch_size, optimizer, loss_criterion, gamma, nb_epochs, plot) :
 
     total_L = []
-    print('Batch_size : ',batch_size,'\nLearning rate : ',gamma)
+    print('Batch_size : ',batch_size,'\nLearning rate : ',gamma,'\n')
     for epoch in range(nb_epochs): 
         i = 0
         temp_L = []
@@ -116,24 +116,36 @@ def train_model(CNN, trainloader, batch_size, optimizer, loss_criterion, gamma, 
         total_L.append(sum(temp_L)/float(len(temp_L)))
         print(f"Epoch : {epoch}, Loss : {round(total_L[-1].item(),6)}")
 
+    if plot :
+        loss_plot = np.array([T.detach().numpy() for T in total_L])
+        plt.figure(figsize=(4.3,4))
+        sns.set()
+        plt.plot(loss_plot)
+        plt.title('Evolution of the loss')
+        plt.xlabel('Epoch');plt.ylabel('Loss');
+
     return round(total_L[-1].item(),6)
 
-def compute_accuracy(testloader, CNN, last_loss) :
+def compute_accuracy(testloader, CNN, last_loss, classes, plot) :
 
     correct = 0
     total = 0
 
     y_pred, y_true = [], []
 
-    # since we're not training, we don't need to calculate the gradients for our outputs
+    # Prepare to count predictions for each class
+    correct_pred = {classname: 0 for classname in classes}
+    total_pred = {classname: 0 for classname in classes}
+
+    # Since we're not training, we don't need to calculate the gradients for our outputs
     with torch.no_grad():
         for data in testloader:
             X_test, labels = data
             X_test, labels = X_test.float(), labels.type(torch.LongTensor)
-            # calculate outputs by running images through the network
+            # Calculate outputs by running images through the network
             outputs = CNN(X_test)
 
-            # the class with the highest energy is what we choose as prediction
+            # The class with the highest energy is what we choose as prediction
             _, predicted = torch.max(outputs.data, 1)
             
             y_true.extend(labels.tolist())
@@ -142,74 +154,82 @@ def compute_accuracy(testloader, CNN, last_loss) :
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    TOT_ACC = 100 * correct / total
-    F1 = 100 * f1_score(y_true, y_pred, average='weighted')
-
-    # prepare to count predictions for each class
-    classes = ('FNSZ','GNSZ')
-    correct_pred = {classname: 0 for classname in classes}
-    total_pred = {classname: 0 for classname in classes}
-
-    # again no gradients needed
-    with torch.no_grad():
-        for data in testloader:
-            X_test, labels = data
-            X_test, labels = X_test.float(), labels.type(torch.LongTensor)
-            outputs = CNN(X_test)
             _, predictions = torch.max(outputs, 1)
-            # collect the correct predictions for each class
+            # Collect the correct predictions for each class
             for label, prediction in zip(labels, predictions):
                 if label == prediction:
                     correct_pred[classes[label]] += 1
                 total_pred[classes[label]] += 1
 
-    print('Final loss : ',last_loss)
+    TOT_ACC = 100 * correct / total
+    F1 = 100 * f1_score(y_true, y_pred, average='weighted')
+
+    print('\nFinal loss : ',last_loss)
     print(f'Unweighted total accuracy on test : {round(TOT_ACC,1)} %')
     print(f'Weighted F1-score on test : {round(F1,1)} %')
 
-    # print accuracy for each class
+    # Print accuracy for each class
     for classname, correct_count in correct_pred.items():
         accuracy = 100 * float(correct_count) / total_pred[classname]
         print("Accuracy for {:5s} is: {:.1f} %".format(classname, accuracy))
+    
+    C = confusion_matrix(y_true, y_pred)
+    print(f'Confusion matrix :\n{C}\n')
 
-
+    if plot :
+        df_cm = pd.DataFrame(C, index=classes, columns=classes)
+        plt.figure(figsize=(4.3,4))
+        sns.heatmap(df_cm, annot=True, cmap='Blues', fmt='g', cbar=False) 
+        plt.title('Confusion matrix')
+        plt.ylabel('True label'); plt.xlabel('Predicted label')
+        plt.tight_layout()
+        plt.show()
 
 if __name__ == '__main__':
 
-    # Change this if using cov matrix (or to keep the adjacency matrix)
-    is_cov = True
+    print('\nStart...\n')
 
-    # Need to put it as a torch.Size([1, 20, 20])
-    #input_dir = '../data/v1.5.2/graph_unnormal'
-    input_dir = '../data/v1.5.2/graph_cov_low'
-    #input_dir = '../data/v1.5.2/graph_avg_1_5'
-    szr_types = ['FNSZ','GNSZ']
+    parser = argparse.ArgumentParser(description='Build the graph CNN for classification')
+    parser.add_argument('--input_dir', default='./data/v1.5.2/graph_avg_1_5', help='path to input graphs')
+    parser.add_argument('--is_cov',default=False, help="set to True (or 1) if the graphs used are cov matrices", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--plot',default=False, help="set to True if not on the cluster to plot", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--nb_epochs',default=10, help="number of epochs for CNN training", type=lambda x: int(str(x)))
+    parser.add_argument('--batch_size',default=50, help="batch size for the CNN dataloader", type=lambda x: int(str(x)))
+    parser.add_argument('--l_rate',default=0.0001, help="learning rate for the CNN", type=lambda x: float(str(x)))
+
+    args = parser.parse_args()
+    input_dir = args.input_dir
+    is_cov = args.is_cov
+    plot = args.plot
+    nb_epochs = args.nb_epochs
+    batch_size = args.batch_size
+    gamma = args.l_rate
+
+    classes = ['FNSZ','GNSZ']
 
     class_dict = {}
-    for i, szr_type in enumerate(szr_types) :
+    for i, szr_type in enumerate(classes) :
         class_dict[szr_type] = i
 
-    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict)
-
-    batch_size = 50
-
-    classes = ('FNSZ','GNSZ')
+    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_cov)
 
     trainset, testset = to_set(train, test, train_labels, test_labels)
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
-    # Run forward pass once and check flattened output dimensions
+    # Initialise convolutional neural network
     CNN = Net()
     CNN = CNN.float()
     print(CNN)
 
-    nb_epochs = 100
-    gamma = 1e-4
     loss_criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(CNN.parameters(), lr=gamma)
 
-    last_loss = train_model(CNN, trainloader, batch_size, optimizer, loss_criterion, gamma, nb_epochs)
+    print('\nStart of training...\n')
+    last_loss = train_model(CNN, trainloader, batch_size, optimizer, loss_criterion, gamma, nb_epochs, plot)
+    print('\n...Training done\n\nComputation of accuracy on test data...')
 
-    compute_accuracy(testloader, CNN, last_loss)
+    compute_accuracy(testloader, CNN, last_loss, classes, plot)
+
+    print('\n...Done\n')
