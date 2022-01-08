@@ -15,19 +15,19 @@ import random
 import seaborn as sns
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
 
-
 def load_graphs(input_dir, class_dict, is_cov) :
 
-    data, data_labels = [], [] # data containing the graphs and data_labels the associated seizure type labels
-    i=0
+    data, data_labels = [], [] # data contains the graphs as tensors and data_labels the associated seizure type labels
+    i = 0
     for szr_type in class_dict.keys() :
         szr_label = class_dict[szr_type]
         for _, _, files in os.walk(os.path.join(input_dir,szr_type)) :
+
             for npy_file in files :
                 A = np.load(os.path.join(input_dir,szr_type,npy_file))
-                
                 # Normalise A (already normalised depending on the input)
                 A = A/np.amax(A.flatten())
+
                 if is_cov : 
                     L = torch.tensor(A).view(1,20,20)
                 else : 
@@ -36,7 +36,7 @@ def load_graphs(input_dir, class_dict, is_cov) :
                 data.append(L)
                 data_labels.append(szr_label)
 
-    return np.array(data), np.array(data_labels)
+    return np.array(data, dtype=object), np.array(data_labels)
 
 def train_test_data(input_dir, class_dict, is_cov) :
 
@@ -174,7 +174,7 @@ def compute_accuracy(testloader, CNN, last_loss, classes, plot) :
         print("Accuracy for {:5s} is: {:.1f} %".format(classname, accuracy))
     
     C = confusion_matrix(y_true, y_pred)
-    print(f'Confusion matrix :\n{C}\n')
+    print(f'\nConfusion matrix :\n{C}\n')
 
     if plot :
         df_cm = pd.DataFrame(C, index=classes, columns=classes)
