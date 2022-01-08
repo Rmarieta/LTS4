@@ -3,12 +3,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
-from matplotlib.colors import ListedColormap
 import seaborn as sn
 import pandas as pd
 
-from sklearn.datasets import load_breast_cancer
-from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
@@ -17,8 +14,9 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score, KFold
+import math
+import random
 
 def load_graphs(input_dir, class_dict, is_covariance) :
 
@@ -49,15 +47,54 @@ def train_test_data(input_dir, class_dict, is_covariance) :
 
     return train, test, train_labels, test_labels
 
-def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot) :
+def oversample(data, labels) :
+
+    os_data, os_labels = [], []
+
+    # Oversampling (train set only) to have balanced classification without dropping information
+    PD = pd.DataFrame(labels,columns=['label'])
+    no_0, no_1 = len(PD[PD['label']==0]), len(PD[PD['label']==1])
+    print(no_0, ' vs ', no_1)
+
+    R = math.floor(no_0/no_1)
+    print(R) # Multiply the dataset by this ratio, then add (no_0 - R*no_1) randomly selected entries from the smallest dataset
+    print(no_0 - R*no_1)
+
+    trainset = []
+    for i in range(len(data)) :
+        if labels[i] == 1 : # Under-represented class (here the one with element 1):
+            for r in range(R) : # Add each element R times
+                os_data.append(data[i])
+                os_labels.append(labels[i])
+        else : # Only add once each element of the over-represented class
+            os_data.append(data[i])
+            os_labels.append(labels[i])
+
+    # Compensate the remaining imbalance : draw (no_0 - R*no_1) elements from already present elements
+    Add = random.sample(PD[PD['label']==1].index.to_list(),no_0 - R*no_1)
+    for idx in Add :
+        os_data.append(data[idx])
+        os_labels.append(labels[idx])
+
+    PD = pd.DataFrame(os_labels,columns=['label'])
+    no_0, no_1 = len(PD[PD['label']==0]), len(PD[PD['label']==1])
+    print(no_0, ' vs ', no_1)
+
+    return os_data, os_labels
+
+def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot, balanced) :
 
     class_dict = {}
     for i, szr_type in enumerate(szr_types) :
         class_dict[szr_type] = i
     
     train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_covariance)
+    
+    # Oversample the under-represented class (only relevant on training data)
+    if balanced : 
+        train, train_labels = oversample(train, train_labels)
 
-    # Shuffle the datasets (if of any use ?)
+    # Shuffle the datasets
     np.random.seed(2) # For reproducibility
     train, train_labels = shuffle(train, train_labels)
     test, test_labels = shuffle(test, test_labels)
@@ -138,6 +175,7 @@ if __name__ == '__main__':
     parser.add_argument('--cross_val',default=False, help="set to True (or 1) to perform a cross-validation", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--is_cov',default=False, help="set to True (or 1) if the graphs used are cov matrices", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--plot',default=False, help="set to True if not on the cluster to plot the confusion matrix", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--balanced',default=True, help="set to True to oversample under-represented class", type=lambda x: (str(x).lower() in ['true','1']))
 
     args = parser.parse_args()
     #parser.print_help()
@@ -148,11 +186,12 @@ if __name__ == '__main__':
     cross_val = args.cross_val
     is_covariance = args.is_cov
     plot = args.plot
+    balanced = args.balanced
 
     if algo not in implemented_algos :
         print(f"The selected classification algorithm ('"+algo+"') is not available")
         exit()
 
-    classify(graph_dir, szr_types, algo, cross_val, is_covariance, plot)
+    classify(graph_dir, szr_types, algo, cross_val, is_covariance, plot, balanced)
 
     print('\n\nDONE\n\n')
