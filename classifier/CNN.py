@@ -15,7 +15,7 @@ import random
 import seaborn as sns
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
 
-def load_graphs(input_dir, class_dict, is_cov) :
+def load_graphs(input_dir, class_dict, is_cov, upper) :
 
     data, data_labels = [], [] # data contains the graphs as tensors and data_labels the associated seizure type labels
     i = 0
@@ -29,19 +29,24 @@ def load_graphs(input_dir, class_dict, is_cov) :
                 A = A/np.amax(A.flatten())
 
                 if is_cov : 
-                    L = torch.tensor(A).view(1,20,20)
+                    L = A
                 else : 
-                    L = torch.tensor(np.diag(A*np.ones((A.shape[0],1)))-A).view(1,20,20)
+                    L = np.diag(A*np.ones((A.shape[0],1)))-A
+                
+                # Only keep upper triangle as matrix is symmetric
+                if upper : L = np.triu(L, 1)
+                # Change to tensor and reshape for dataloader
+                L = torch.tensor(L).view(1,20,20)
 
                 data.append(L)
                 data_labels.append(szr_label)
 
     return np.array(data, dtype=object), np.array(data_labels)
 
-def train_test_data(input_dir, class_dict, is_cov) :
+def train_test_data(input_dir, class_dict, is_cov, upper) :
 
-    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict, is_cov)
-    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict, is_cov)
+    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict, is_cov, upper)
+    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict, is_cov, upper)
 
     return train, test, train_labels, test_labels
 
@@ -74,23 +79,28 @@ def to_set(train, test, train_labels, test_labels) :
 
     return trainset, testset
 
-class Net(nn.Module) :
+class Net(nn.Module):
 
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 6, 3)
-        self.pool = nn.MaxPool2d(2, 2)
+        self.pool1 = nn.MaxPool2d(2, 2)
+        self.pool2 = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 3)
         self.fc1 = nn.Linear(16 * 3 * 3, 80)
         self.fc2 = nn.Linear(80, 40)
         self.fc3 = nn.Linear(40, 2)
+        self.relu1 = nn.ReLU()
+        self.relu2 = nn.ReLU()
+        self.relu3 = nn.ReLU()
+        self.relu4 = nn.ReLU()
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool1(self.relu1(self.conv1(x)))
+        x = self.pool2(self.relu2(self.conv2(x)))
         x = torch.flatten(x, 1)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.relu3(self.fc1(x))
+        x = self.relu4(self.fc2(x))
         x = self.fc3(x)
         return F.softmax(x,dim=1)
 
@@ -196,6 +206,7 @@ if __name__ == '__main__':
     parser.add_argument('--nb_epochs',default=10, help="number of epochs for CNN training", type=lambda x: int(str(x)))
     parser.add_argument('--batch_size',default=50, help="batch size for the CNN dataloader", type=lambda x: int(str(x)))
     parser.add_argument('--l_rate',default=0.0001, help="learning rate for the CNN", type=lambda x: float(str(x)))
+    parser.add_argument('--upper',default=False, help="set to True to only keep upper triangle of symmetric graph", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--save_model',default=False, help="set to True to save the CNN", type=lambda x: (str(x).lower() in ['true','1']))
 
     args = parser.parse_args()
@@ -205,6 +216,7 @@ if __name__ == '__main__':
     nb_epochs = args.nb_epochs
     batch_size = args.batch_size
     gamma = args.l_rate
+    upper = args.upper
     save_model = args.save_model
 
     classes = ['FNSZ','GNSZ']
@@ -213,7 +225,7 @@ if __name__ == '__main__':
     for i, szr_type in enumerate(classes) :
         class_dict[szr_type] = i
 
-    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_cov)
+    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_cov, upper)
 
     trainset, testset = to_set(train, test, train_labels, test_labels)
 
