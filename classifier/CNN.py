@@ -196,6 +196,7 @@ if __name__ == '__main__':
     parser.add_argument('--nb_epochs',default=10, help="number of epochs for CNN training", type=lambda x: int(str(x)))
     parser.add_argument('--batch_size',default=50, help="batch size for the CNN dataloader", type=lambda x: int(str(x)))
     parser.add_argument('--l_rate',default=0.0001, help="learning rate for the CNN", type=lambda x: float(str(x)))
+    parser.add_argument('--save_model',default=False, help="set to True to save the CNN", type=lambda x: (str(x).lower() in ['true','1']))
 
     args = parser.parse_args()
     input_dir = args.input_dir
@@ -204,6 +205,7 @@ if __name__ == '__main__':
     nb_epochs = args.nb_epochs
     batch_size = args.batch_size
     gamma = args.l_rate
+    save_model = args.save_model
 
     classes = ['FNSZ','GNSZ']
 
@@ -231,5 +233,8 @@ if __name__ == '__main__':
     print('\n...Training done\n\nComputation of accuracy on test data...')
 
     compute_accuracy(testloader, CNN, last_loss, classes, plot)
+
+    if save_model : 
+        torch.save(CNN, 'classifier/low_cov_50_1s_CNN.pt')
 
     print('\n...Done\n')
