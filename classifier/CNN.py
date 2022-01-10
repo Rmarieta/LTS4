@@ -19,10 +19,12 @@ def load_graphs(input_dir, class_dict, is_cov, upper) :
 
     data, data_labels = [], [] # data contains the graphs as tensors and data_labels the associated seizure type labels
     i = 0
+
     for szr_type in class_dict.keys() :
+
         szr_label = class_dict[szr_type]
         for _, _, files in os.walk(os.path.join(input_dir,szr_type)) :
-
+            
             for npy_file in files :
                 A = np.load(os.path.join(input_dir,szr_type,npy_file))
                 # Normalise A (already normalised depending on the input)
@@ -37,7 +39,7 @@ def load_graphs(input_dir, class_dict, is_cov, upper) :
                 if upper : L = np.triu(L, 1)
                 # Change to tensor and reshape for dataloader
                 L = torch.tensor(L).view(1,20,20)
-
+                
                 data.append(L)
                 data_labels.append(szr_label)
 
@@ -226,7 +228,7 @@ if __name__ == '__main__':
         class_dict[szr_type] = i
 
     train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_cov, upper)
-
+    # Turn into a set with the label to feed the dataloader and oversample the least represented class
     trainset, testset = to_set(train, test, train_labels, test_labels)
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -247,6 +249,6 @@ if __name__ == '__main__':
     compute_accuracy(testloader, CNN, last_loss, classes, plot)
 
     if save_model : 
-        torch.save(CNN, 'classifier/low_cov_50_1s_CNN.pt')
+        torch.save(CNN, 'classifier/low_lapl_50_upper_CNN.pt')
 
     print('\n...Done\n')
