@@ -245,11 +245,15 @@ def low_pass(input, sampling_freq, cutoff_freq=100, order=5) :
 
     return filtered_signal
 
-def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L, low_p) :
+def compute_Laplacian(input_dir, set, types, ignore_L, low_p, chop) :
 
     # np.random.seed(0)
     solvers.options['show_progress'] = False
-    chop_size = 40000
+    
+    if not chop :
+        chop_size = 40000 # Still necessary to avoid crashing from running on too large samples
+    else :
+        chop_size = 250 # One second sample
 
     # Create Laplacian dictionary and fill it up with the learned L's
     Laplacian_dict = collections.defaultdict(list)
@@ -279,31 +283,28 @@ def compute_Laplacian(input_dir, set, types, restrict_size, ignore_L, low_p) :
                     #input = (input-np.amin(input))/(np.amax(input)-np.amin(input)) # Standardise the input
                     input = input/np.amax(np.abs(input)) # Normalize the input
 
-                    if restrict_size :
-                        chop_idx = [0, chop_size]
-                    else :
-                        nb_sections = len(input)//chop_size+1 # Integer division
-                        # Define even sections to avoid having a graph computed from short section which can induce a bias in the averaged matrix
-                        chop_idx = np.linspace(0,len(input),num=nb_sections+1).astype(int)
+                    nb_sections = len(input)//chop_size+1 # Integer division
+                    # Define even sections to avoid having a graph computed from short section which can induce a bias in the averaged matrix
+                    chop_idx = np.linspace(0,len(input),num=nb_sections+1).astype(int)
                     
                     A_list = []
 
                     for i in range(len(chop_idx)-1) :
                         
-                        L, _ = gl_sig_model(inp_signal=input[chop_idx[i]:chop_idx[i+1]], max_iter=2, alpha=1, beta=5, ignore_L=ignore_L)
+                        L, _ = gl_sig_model(inp_signal=input[chop_idx[i]:chop_idx[i+1]], max_iter=1, alpha=1, beta=5, ignore_L=ignore_L)
 
                         # To get the adjacency matrix
                         A_tmp = -(L - np.diag(np.diag(L)))
                         
-                        # Add to list for future average computation
-                        A_list.append(A_tmp)
+                        if chop : # Save each 1s graph
+                            Laplacian_dict[szr_type].append((patient_id, A))
+                        else :
+                            # Add to list for future average computation
+                            A_list.append(A_tmp)
                     
-                    A = sum(A_list)/len(A_list) # Average the adjacency matrices                    
-                    
-                    #A = A/np.amax(A.flatten()) # Normalise A
-
-                    Laplacian_dict[szr_type].append((patient_id, A))
-                
+                    if not chop :
+                        A = sum(A_list)/len(A_list) # Average the adjacency matrices                    
+                        Laplacian_dict[szr_type].append((patient_id, A))
                 
                 count +=1
                 bar.update(count)
@@ -339,7 +340,7 @@ if __name__ == "__main__":
     parser.add_argument('--input_dir', default=os.path.join(data_dir,'v1.5.2/raw_samples'), help='path to the input for the Laplacian computation')
     parser.add_argument('--seizure_types',default=['BG','FNSZ','GNSZ'], help="types of seizures for which we compute the Laplacian (include 'BG' if needed), in the form --seizure_types 'BG' 'FNSZ' 'GNSZ'", nargs="+")
     parser.add_argument('--graph_dir', default=os.path.join(data_dir,'v1.5.2/graph_output'), help='path to the output of the Laplacian computation')
-    parser.add_argument('--restrict_size', default=True, help='restrict the size of the EEG recordings to avoid crashing', type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--chop', default=False, help='to compute one graph per 1s sample', type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--ignore_L', default=True, help='ignore the assert in the Laplacian computation', type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--low_pass', default=False, help='low-pass the input before graph computation', type=lambda x: (str(x).lower() in ['true','1']))
 
@@ -347,7 +348,7 @@ if __name__ == "__main__":
     seizure_types = args.seizure_types
     input_dir = args.input_dir
     graph_dir = args.graph_dir
-    restrict_size = args.restrict_size
+    restrict_size = args.chop
     ignore_L = args.ignore_L
     low_p = args.low_pass
 
@@ -355,7 +356,7 @@ if __name__ == "__main__":
     build_dir(input_dir, ['train','dev'], seizure_types, graph_dir)
     
     # Learn the laplacian matrices and fill up a dictionary with the many graphs
-    Laplacian_dev_dict = compute_Laplacian(input_dir, 'dev', seizure_types, restrict_size, ignore_L, low_p)
+    Laplacian_dev_dict = compute_Laplacian(input_dir, 'dev', seizure_types, ignore_L, low_p, chop)
 
     # Save the results into the output folders (dev and train) with one file per seizure type
     print('\n\nSaving the graphs as .npy files...\n')
@@ -363,7 +364,7 @@ if __name__ == "__main__":
     print('\n...Saving done\n\n')
 
     # Same for the train dataset
-    Laplacian_train_dict = compute_Laplacian(input_dir, 'train', seizure_types, restrict_size, ignore_L, low_p)
+    Laplacian_train_dict = compute_Laplacian(input_dir, 'train', seizure_types, ignore_L, low_p, chop)
     print('\n\nSaving the graphs as .npy files...\n')
     save_graphs(Laplacian_train_dict, graph_dir, 'train')
     print('\n...Saving done\n\n')
