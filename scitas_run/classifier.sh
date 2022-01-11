@@ -14,5 +14,5 @@ source ../rma_env/bin/activate
 # To run simple models, one in ['bayes','kNN','SVM','tree','logit']
 #python -u classifier/graph_classifier.py --graph_dir './data/v1.5.2/graph_cov_1s' --algo 'logit' --seizure_types 'FNSZ' 'GNSZ' --cross_val 'False' --is_cov 'True' --plot 'False'
 # To run the CNN
-python -u classifier/CNN.py --input_dir './data/v1.5.2/graph_lapl_low_50' --is_cov 'False' --nb_epochs 500 --save_model 'True' --upper 'True'
+python -u classifier/dual_CNN.py --input_cov './data/v1.5.2/graph_cov_low_100' --input_lapl './data/v1.5.2/graph_lapl_low_50' --nb_epochs 200 --save_model 'False' --upper 'True'
 # To run : sbatch scitas_run/classifier.sh (in home/rmarieta/LTS4)

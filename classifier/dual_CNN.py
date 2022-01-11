@@ -15,44 +15,58 @@ import random
 import seaborn as sns
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
 
-def load_graphs(input_dir, class_dict, is_cov, upper) :
+def load_graphs(input_cov, input_lapl, class_dict, upper) :
 
-    data, data_labels = [], [] # data contains the graphs as tensors and data_labels the associated seizure type labels
+    data_cov, data_lapl, data_labels = [], [], [] # data contains the graphs as tensors and data_labels the associated seizure type labels
     i = 0
 
     for szr_type in class_dict.keys() :
 
         szr_label = class_dict[szr_type]
-        for _, _, files in os.walk(os.path.join(input_dir,szr_type)) :
-            
-            for npy_file in files :
-                A = np.load(os.path.join(input_dir,szr_type,npy_file))
-                # Normalise A (already normalised depending on the input)
-                A = A/np.amax(A.flatten())
 
-                if is_cov : 
-                    L = A
-                else : 
-                    L = np.diag(A*np.ones((A.shape[0],1)))-A
+        # Retrieve covariance graphs
+        for _, _, cov_files in os.walk(os.path.join(input_cov,szr_type)) :
+            
+            for npy_file in cov_files :
+                A = np.load(os.path.join(input_cov,szr_type,npy_file))
+                # Normalise A (already normalised depending on the input)
+                L = A/np.amax(A.flatten())
                 
                 # Only keep upper triangle as matrix is symmetric
                 if upper : L = np.triu(L, 1)
                 # Change to tensor and reshape for dataloader
                 L = torch.tensor(L).view(1,20,20)
                 
-                data.append(L)
+                data_cov.append(L)
                 data_labels.append(szr_label)
 
-    return np.array(data, dtype=object), np.array(data_labels)
+        # Retrieve laplacian graphs
+        for _, _, lapl_files in os.walk(os.path.join(input_lapl,szr_type)) :
+            
+            for npy_file in lapl_files :
+                A = np.load(os.path.join(input_lapl,szr_type,npy_file))
+                # Normalise A (already normalised depending on the input)
+                A = A/np.amax(A.flatten())
 
-def train_test_data(input_dir, class_dict, is_cov, upper) :
+                L = np.diag(A*np.ones((A.shape[0],1)))-A
+                
+                # Only keep upper triangle as matrix is symmetric
+                if upper : L = np.triu(L, 1)
+                # Change to tensor and reshape for dataloader
+                L = torch.tensor(L).view(1,20,20)
+                
+                data_lapl.append(L)
+    
+    return np.array(data_cov, dtype=object), np.array(data_lapl, dtype=object), np.array(data_labels)
 
-    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict, is_cov, upper)
-    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict, is_cov, upper)
+def train_test_data(input_cov, input_lapl, class_dict, upper) :
 
-    return train, test, train_labels, test_labels
+    train_cov, train_lapl, train_labels = load_graphs(os.path.join(input_cov,'train'), os.path.join(input_lapl,'train'), class_dict, upper)
+    test_cov, test_lapl, test_labels = load_graphs(os.path.join(input_cov,'dev'), os.path.join(input_lapl,'dev'), class_dict, upper)
 
-def to_set(train, test, train_labels, test_labels) :
+    return train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels
+
+def to_set(train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels) :
 
     # Oversampling (train set only) to have balanced classification without dropping information
     PD = pd.DataFrame(train_labels, columns=['label'])
@@ -60,21 +74,22 @@ def to_set(train, test, train_labels, test_labels) :
     R = math.floor(no_0/no_1) # Multiply the dataset by this ratio, then add (no_0 - R*no_1) randomly selected entries from the smallest dataset
 
     trainset, testset = [], []
-    for i in range(len(train)) :
+    for i in range(len(train_cov)) :
         if train_labels[i] == 1 : # Under-represented class :
             # The dataloader later shuffles the data
             for r in range(R) :
-                trainset.append((train[i],train_labels[i]))
+                trainset.append((torch.cat((train_cov[i], train_lapl[i]), 0),train_labels[i]))
         else :
-            trainset.append((train[i],train_labels[i]))
+            trainset.append((torch.cat((train_cov[i], train_lapl[i]), 0),train_labels[i]))
     
     # Compensate the remaining imbalance => draw (no_0 - R*no_1) elements from already present elements
     Add = random.sample(PD[PD['label']==1].index.to_list(),no_0 - R*no_1)
     for idx in Add :
-        trainset.append((train[idx],train_labels[idx]))
+        trainset.append((torch.cat((train_cov[idx], train_lapl[idx]), 0),train_labels[idx]))
 
-    for j in range(len(test)) :
-        testset.append((test[j],test_labels[j]))
+    # Generate the testset
+    for j in range(len(test_cov)) :
+        testset.append((torch.cat((test_cov[j], test_lapl[j]), 0),test_labels[j]))
 
     return trainset, testset
 
@@ -82,7 +97,7 @@ class Net(nn.Module):
 
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, 3)
+        self.conv1 = nn.Conv2d(2, 6, 3)
         self.pool1 = nn.MaxPool2d(2, 2)
         self.pool2 = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 3)
@@ -199,8 +214,8 @@ if __name__ == '__main__':
     print('\nStart...\n')
 
     parser = argparse.ArgumentParser(description='Build the graph CNN for classification')
-    parser.add_argument('--input_dir', default='./data/v1.5.2/graph_avg_1_5', help='path to input graphs')
-    parser.add_argument('--is_cov',default=False, help="set to True (or 1) if the graphs used are cov matrices", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--input_cov', default='./data/v1.5.2/graph_cov_low_100', help='path to input covariance graphs')
+    parser.add_argument('--input_lapl', default='./data/v1.5.2/graph_lapl_nolow', help='path to input laplacian graphs')
     parser.add_argument('--plot',default=False, help="set to True if not on the cluster to plot", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--nb_epochs',default=10, help="number of epochs for CNN training", type=lambda x: int(str(x)))
     parser.add_argument('--batch_size',default=50, help="batch size for the CNN dataloader", type=lambda x: int(str(x)))
@@ -209,8 +224,8 @@ if __name__ == '__main__':
     parser.add_argument('--save_model',default=False, help="set to True to save the CNN", type=lambda x: (str(x).lower() in ['true','1']))
 
     args = parser.parse_args()
-    input_dir = args.input_dir
-    is_cov = args.is_cov
+    input_cov = args.input_cov
+    input_lapl = args.input_lapl
     plot = args.plot
     nb_epochs = args.nb_epochs
     batch_size = args.batch_size
@@ -224,9 +239,9 @@ if __name__ == '__main__':
     for i, szr_type in enumerate(classes) :
         class_dict[szr_type] = i
 
-    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_cov, upper)
+    train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels = train_test_data(input_cov, input_lapl, class_dict, upper)
     # Turn into a set with the label to feed the dataloader and oversample the least represented class
-    trainset, testset = to_set(train, test, train_labels, test_labels)
+    trainset, testset = to_set(train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels)
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
