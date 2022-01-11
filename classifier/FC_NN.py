@@ -115,7 +115,7 @@ def train_model(CNN, trainloader, batch_size, optimizer, loss_criterion, gamma, 
 
             i += 1
         total_L.append(sum(temp_L)/float(len(temp_L)))
-        print(f"Epoch : {epoch}, Loss : {round(total_L[-1].item(),6)}")
+        print(f"Epoch : {epoch}, training loss : {round(total_L[-1].item(),6)}")
 
     if plot :
         loss_plot = np.array([T.detach().numpy() for T in total_L])

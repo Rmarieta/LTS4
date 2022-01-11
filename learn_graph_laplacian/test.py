@@ -291,7 +291,7 @@ def compute_Laplacian(input_dir, set, types, ignore_L, low_p, chop) :
 
                     for i in range(len(chop_idx)-1) :
                         
-                        L, _ = gl_sig_model(inp_signal=input[chop_idx[i]:chop_idx[i+1]], max_iter=2, alpha=1, beta=1, ignore_L=ignore_L)
+                        L, _ = gl_sig_model(inp_signal=input[chop_idx[i]:chop_idx[i+1]], max_iter=2, alpha=1, beta=5, ignore_L=ignore_L)
 
                         # To get the adjacency matrix
                         A_tmp = -(L - np.diag(np.diag(L)))
@@ -356,11 +356,11 @@ if __name__ == "__main__":
     build_dir(input_dir, ['train','dev'], seizure_types, graph_dir)
     
     # Learn the laplacian matrices and fill up a dictionary with the many graphs
-    Laplacian_dev_dict = compute_Laplacian(input_dir, 'dev', seizure_types, ignore_L, low_p, chop)
+    #Laplacian_dev_dict = compute_Laplacian(input_dir, 'dev', seizure_types, ignore_L, low_p, chop)
 
     # Save the results into the output folders (dev and train) with one file per seizure type
     print('\n\nSaving the graphs as .npy files...\n')
-    save_graphs(Laplacian_dev_dict, graph_dir, 'dev')
+    #save_graphs(Laplacian_dev_dict, graph_dir, 'dev')
     print('\n...Saving done\n\n')
 
     # Same for the train dataset

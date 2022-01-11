@@ -93,13 +93,17 @@ class Net(nn.Module):
         self.relu2 = nn.ReLU()
         self.relu3 = nn.ReLU()
         self.relu4 = nn.ReLU()
+        self.dropout1 = nn.Dropout(0.3)
+        self.dropout2 = nn.Dropout(0.3)
+        self.dropout3 = nn.Dropout(0.3)
+        self.dropout4 = nn.Dropout(0.3)
 
     def forward(self, x):
-        x = self.pool1(self.relu1(self.conv1(x)))
-        x = self.pool2(self.relu2(self.conv2(x)))
+        x = self.dropout1(self.pool1(self.relu1(self.conv1(x))))
+        x = self.dropout2(self.pool2(self.relu2(self.conv2(x))))
         x = torch.flatten(x, 1)
-        x = self.relu3(self.fc1(x))
-        x = self.relu4(self.fc2(x))
+        x = self.dropout3(self.relu3(self.fc1(x)))
+        x = self.dropout4(self.relu4(self.fc2(x)))
         x = self.fc3(x)
         return F.softmax(x,dim=1)
 
@@ -123,7 +127,7 @@ def train_model(CNN, trainloader, batch_size, optimizer, loss_criterion, gamma, 
 
             i += 1
         total_L.append(sum(temp_L)/float(len(temp_L)))
-        print(f"Epoch : {epoch}, Loss : {round(total_L[-1].item(),6)}")
+        print(f"Epoch : {epoch}, training loss : {round(total_L[-1].item(),6)}")
 
     if plot :
         loss_plot = np.array([T.detach().numpy() for T in total_L])
