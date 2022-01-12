@@ -28,8 +28,8 @@ def load_graphs(input_dir, class_dict, is_covariance) :
             for npy_file in files :
                 graph = np.load(os.path.join(input_dir,szr_type,npy_file))
 
-                # To convert to Laplacian (if intended)
-                # graph = np.diag(graph*np.ones((graph.shape[0],1)))-graph
+                # To convert to Laplacian (if intended), diagonal would need to be included in flattened output
+                # graph = np.diag(np.sum(graph,axis=1))-graph
 
                 graph = graph[np.triu_indices(20, k = 1)]
 
