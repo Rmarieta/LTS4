@@ -15,12 +15,12 @@ import random
 import seaborn as sns
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
 
-def over_connected(graph, upper, is_cov, revert) :
+def over_connected(graph, upper, is_cov) :
 
     G = graph.flatten()
-    cross_thr, full_thr = 90, 90
+    cross_thr, full_thr = 50, 70
     # No such over-connected graphs in covariance matrices and not same thresholds with Laplacian (revert==True)
-    if is_cov or revert : 
+    if is_cov : 
         return False
     # If on full symmetric matrix, the threshold count of pixels has to be doubled
     if not upper :
@@ -58,7 +58,7 @@ def load_graphs(input_cov, input_lapl, class_dict, upper, revert, over_conn) :
                 # Only keep upper triangle as matrix is symmetric
                 if upper : L = np.triu(L, 0)
 
-                if over_conn : is_over_conn = over_connected(L, upper=upper, is_cov=False, revert=revert)
+                if over_conn : is_over_conn = over_connected(A, upper=False, is_cov=False)
                 else : is_over_conn = False
 
                 if not is_over_conn :
@@ -284,7 +284,7 @@ if __name__ == '__main__':
     train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels = train_test_data(input_cov, input_lapl, class_dict, upper, revert, over_conn)
     # Turn into a set with the label to feed the dataloader and oversample the least represented class
     trainset, testset = to_set(train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels)
-    print('Len train cov : ',len(train_cov),', lapl : ',len(train_lapl),'\n')
+
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 

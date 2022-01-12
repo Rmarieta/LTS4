@@ -3,9 +3,9 @@
 #SBATCH --nodes 1
 #SBATCH --ntasks 1
 #SBATCH --cpus-per-task 1
-#SBATCH --mem 100000
-#SBATCH --time 03:50:00 
-#SBATCH --output ./cluster_output/CNN.out
+#SBATCH --mem 80000
+#SBATCH --time 00:50:00 
+#SBATCH --output ./cluster_output/dual_CNN.out
 
 # Use modules to set the software environment
 module load gcc/8.4.0
@@ -24,5 +24,5 @@ source ../rma_env/bin/activate # To activate the virtual environment
 #python -u classifier/CNN.py --input_dir './data/v1.5.2/graph_lapl_nolow' --nb_epochs 60 --save_model 'False' --batch_size 30 --upper 'True' --is_cov 'False' --revert 'False' --over_conn 'True'
 
 # To run the dual CNN :
-python -u classifier/dual_CNN.py --input_cov './data/v1.5.2/graph_cov_low_100' --input_lapl './data/v1.5.2/graph_lapl_low_50' --nb_epochs 40 --save_model 'True' --upper 'True' --revert 'False' --batch_size 10 --over_conn 'True'
+python -u classifier/dual_CNN.py --input_cov './data/v1.5.2/graph_cov_low_100' --input_lapl './data/v1.5.2/graph_lapl_low_50' --nb_epochs 50 --save_model 'True' --upper 'True' --revert 'False' --batch_size 10 --over_conn 'True'
 
