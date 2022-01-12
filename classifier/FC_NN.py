@@ -236,6 +236,6 @@ if __name__ == '__main__':
     compute_accuracy(testloader, FC_NN, last_loss, classes, plot)
 
     if save_model : 
-        torch.save(FC_NN, 'classifier/low_lapl_50_upper_FC_NN.pt')
+        torch.save(FC_NN, 'classifier/test_FC_NN.pt')
 
     print('\n...Done\n')

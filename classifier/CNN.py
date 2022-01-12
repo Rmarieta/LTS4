@@ -250,6 +250,6 @@ if __name__ == '__main__':
     compute_accuracy(testloader, CNN, last_loss, classes, plot)
 
     if save_model : 
-        torch.save(CNN, 'classifier/low_lapl_50_upper_CNN.pt')
+        torch.save(CNN, 'classifier/test_CNN.pt')
 
     print('\n...Done\n')
