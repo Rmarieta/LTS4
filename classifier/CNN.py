@@ -15,7 +15,25 @@ import random
 import seaborn as sns
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
 
-def load_graphs(input_dir, class_dict, is_cov, upper) :
+def over_connected(graph, upper, is_cov, revert) :
+
+    G = graph.flatten()
+    cross_thr, full_thr = 90, 90
+    # No such over-connected graphs in covariance matrices and not same thresholds with Laplacian (revert==True)
+    if is_cov or revert : 
+        return False
+    # If on full symmetric matrix, the threshold count of pixels has to be doubled
+    if not upper :
+        cross_thr = 2*cross_thr
+        full_thr = 2*full_thr
+    if (G > 0.6).sum() >= cross_thr :
+        return True
+    elif (G > 0.4).sum() >= full_thr : 
+        return True
+    else : 
+        return False
+
+def load_graphs(input_dir, class_dict, is_cov, upper, revert, over_conn) :
 
     data, data_labels = [], [] # data contains the graphs as tensors and data_labels the associated seizure type labels
     i = 0
@@ -30,25 +48,31 @@ def load_graphs(input_dir, class_dict, is_cov, upper) :
                 # Normalise A (already normalised depending on the input)
                 A = A/np.amax(A.flatten())
 
-                if is_cov : 
-                    L = A
+                if not is_cov and revert : 
+                    L = np.diag(np.sum(A,axis=1)) - A
                 else : 
-                    L = np.diag(A*np.ones((A.shape[0],1)))-A
+                    L = A
                 
                 # Only keep upper triangle as matrix is symmetric
-                if upper : L = np.triu(L, 1)
-                # Change to tensor and reshape for dataloader
-                L = torch.tensor(L).view(1,20,20)
-                
-                data.append(L)
-                data_labels.append(szr_label)
+                if upper : L = np.triu(L, 0)
+
+                if over_conn : is_over_conn = over_connected(L, upper=upper, is_cov=is_cov, revert=revert)
+                else : is_over_conn = False
+
+                if not is_over_conn :
+
+                    # Change to tensor and reshape for dataloader
+                    L = torch.tensor(L).view(1,20,20)
+                    
+                    data.append(L)
+                    data_labels.append(szr_label)
 
     return np.array(data, dtype=object), np.array(data_labels)
 
-def train_test_data(input_dir, class_dict, is_cov, upper) :
+def train_test_data(input_dir, class_dict, is_cov, upper, revert, over_conn) :
 
-    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict, is_cov, upper)
-    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict, is_cov, upper)
+    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict, is_cov, upper, revert, over_conn)
+    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict, is_cov, upper, revert, over_conn)
 
     return train, test, train_labels, test_labels
 
@@ -211,6 +235,8 @@ if __name__ == '__main__':
     parser.add_argument('--l_rate',default=0.0001, help="learning rate for the CNN", type=lambda x: float(str(x)))
     parser.add_argument('--upper',default=False, help="set to True to only keep upper triangle of symmetric graph", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--save_model',default=False, help="set to True to save the CNN", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--revert',default=False, help="set to True to revert the adjacency matrix to Laplacian", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--over_conn',default=False, help="set to True to remove over-connected graphs", type=lambda x: (str(x).lower() in ['true','1']))
 
     args = parser.parse_args()
     input_dir = args.input_dir
@@ -221,6 +247,8 @@ if __name__ == '__main__':
     gamma = args.l_rate
     upper = args.upper
     save_model = args.save_model
+    revert = args.revert
+    over_conn = args.over_conn
 
     classes = ['FNSZ','GNSZ']
 
@@ -228,10 +256,10 @@ if __name__ == '__main__':
     for i, szr_type in enumerate(classes) :
         class_dict[szr_type] = i
 
-    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_cov, upper)
+    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_cov, upper, revert, over_conn)
     # Turn into a set with the label to feed the dataloader and oversample the least represented class
     trainset, testset = to_set(train, test, train_labels, test_labels)
-
+    
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 

@@ -15,7 +15,25 @@ import random
 import seaborn as sns
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
 
-def load_graphs(input_cov, input_lapl, class_dict, upper) :
+def over_connected(graph, upper, is_cov, revert) :
+
+    G = graph.flatten()
+    cross_thr, full_thr = 90, 90
+    # No such over-connected graphs in covariance matrices and not same thresholds with Laplacian (revert==True)
+    if is_cov or revert : 
+        return False
+    # If on full symmetric matrix, the threshold count of pixels has to be doubled
+    if not upper :
+        cross_thr = 2*cross_thr
+        full_thr = 2*full_thr
+    if (G > 0.6).sum() >= cross_thr :
+        return True
+    elif (G > 0.4).sum() >= full_thr : 
+        return True
+    else : 
+        return False
+
+def load_graphs(input_cov, input_lapl, class_dict, upper, revert, over_conn) :
 
     data_cov, data_lapl, data_labels = [], [], [] # data contains the graphs as tensors and data_labels the associated seizure type labels
     i = 0
@@ -24,45 +42,61 @@ def load_graphs(input_cov, input_lapl, class_dict, upper) :
 
         szr_label = class_dict[szr_type]
 
-        # Retrieve covariance graphs
-        for _, _, cov_files in os.walk(os.path.join(input_cov,szr_type)) :
-            
-            for npy_file in cov_files :
-                A = np.load(os.path.join(input_cov,szr_type,npy_file))
-                # Normalise A (already normalised depending on the input)
-                L = A/np.amax(A.flatten())
-                
-                # Only keep upper triangle as matrix is symmetric
-                if upper : L = np.triu(L, 1)
-                # Change to tensor and reshape for dataloader
-                L = torch.tensor(L).view(1,20,20)
-                
-                data_cov.append(L)
-                data_labels.append(szr_label)
+        over_idx = [] # list of index of the files that are kept
 
         # Retrieve laplacian graphs
         for _, _, lapl_files in os.walk(os.path.join(input_lapl,szr_type)) :
             
-            for npy_file in lapl_files :
+            for i, npy_file in enumerate(lapl_files) :
                 A = np.load(os.path.join(input_lapl,szr_type,npy_file))
                 # Normalise A (already normalised depending on the input)
                 A = A/np.amax(A.flatten())
 
-                L = np.diag(A*np.ones((A.shape[0],1)))-A
+                if revert : L = np.diag(np.sum(A,axis=1)) - A
+                else : L = A
                 
                 # Only keep upper triangle as matrix is symmetric
-                if upper : L = np.triu(L, 1)
-                # Change to tensor and reshape for dataloader
-                L = torch.tensor(L).view(1,20,20)
+                if upper : L = np.triu(L, 0)
+
+                if over_conn : is_over_conn = over_connected(L, upper=upper, is_cov=False, revert=revert)
+                else : is_over_conn = False
+
+                if not is_over_conn :
+
+                    # Change to tensor and reshape for dataloader
+                    L = torch.tensor(L).view(1,20,20)
+                    
+                    data_lapl.append(L)
+                    data_labels.append(szr_label)
+
+                    over_idx.append(i)
+
+        # Retrieve covariance graphs
+        for _, _, cov_files in os.walk(os.path.join(input_cov,szr_type)) :
+            
+            for j, npy_file in enumerate(cov_files) :
+
+                # If either over-connectivity is ignored or the corresponding adjacency graph was not deemed over-connected
+                if (not over_conn) or (j in over_idx) : 
+
+                    A = np.load(os.path.join(input_cov,szr_type,npy_file))
+                    # Normalise A (already normalised depending on the input)
+                    L = A/np.amax(A.flatten())
+                    
+                    # Only keep upper triangle as matrix is symmetric
+                    if upper : L = np.triu(L, 0)
+                    # Change to tensor and reshape for dataloader
+                    L = torch.tensor(L).view(1,20,20)
+                    
+                    data_cov.append(L)
                 
-                data_lapl.append(L)
     
     return np.array(data_cov, dtype=object), np.array(data_lapl, dtype=object), np.array(data_labels)
 
-def train_test_data(input_cov, input_lapl, class_dict, upper) :
+def train_test_data(input_cov, input_lapl, class_dict, upper, revert, over_conn) :
 
-    train_cov, train_lapl, train_labels = load_graphs(os.path.join(input_cov,'train'), os.path.join(input_lapl,'train'), class_dict, upper)
-    test_cov, test_lapl, test_labels = load_graphs(os.path.join(input_cov,'dev'), os.path.join(input_lapl,'dev'), class_dict, upper)
+    train_cov, train_lapl, train_labels = load_graphs(os.path.join(input_cov,'train'), os.path.join(input_lapl,'train'), class_dict, upper, revert, over_conn)
+    test_cov, test_lapl, test_labels = load_graphs(os.path.join(input_cov,'dev'), os.path.join(input_lapl,'dev'), class_dict, upper, revert, over_conn)
 
     return train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels
 
@@ -108,13 +142,17 @@ class Net(nn.Module):
         self.relu2 = nn.ReLU()
         self.relu3 = nn.ReLU()
         self.relu4 = nn.ReLU()
+        self.dropout1 = nn.Dropout(0.3)
+        self.dropout2 = nn.Dropout(0.3)
+        self.dropout3 = nn.Dropout(0.3)
+        self.dropout4 = nn.Dropout(0.3)
 
     def forward(self, x):
-        x = self.pool1(self.relu1(self.conv1(x)))
-        x = self.pool2(self.relu2(self.conv2(x)))
+        x = self.dropout1(self.pool1(self.relu1(self.conv1(x))))
+        x = self.dropout2(self.pool2(self.relu2(self.conv2(x))))
         x = torch.flatten(x, 1)
-        x = self.relu3(self.fc1(x))
-        x = self.relu4(self.fc2(x))
+        x = self.dropout3(self.relu3(self.fc1(x)))
+        x = self.dropout4(self.relu4(self.fc2(x)))
         x = self.fc3(x)
         return F.softmax(x,dim=1)
 
@@ -222,7 +260,9 @@ if __name__ == '__main__':
     parser.add_argument('--l_rate',default=0.0001, help="learning rate for the CNN", type=lambda x: float(str(x)))
     parser.add_argument('--upper',default=False, help="set to True to only keep upper triangle of symmetric graph", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--save_model',default=False, help="set to True to save the CNN", type=lambda x: (str(x).lower() in ['true','1']))
-
+    parser.add_argument('--revert',default=False, help="set to True to revert the adjacency matrix to Laplacian", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--over_conn',default=False, help="set to True to remove over-connected graphs", type=lambda x: (str(x).lower() in ['true','1']))
+    
     args = parser.parse_args()
     input_cov = args.input_cov
     input_lapl = args.input_lapl
@@ -232,6 +272,8 @@ if __name__ == '__main__':
     gamma = args.l_rate
     upper = args.upper
     save_model = args.save_model
+    revert = args.revert
+    over_conn = args.over_conn
 
     classes = ['FNSZ','GNSZ']
 
@@ -239,10 +281,10 @@ if __name__ == '__main__':
     for i, szr_type in enumerate(classes) :
         class_dict[szr_type] = i
 
-    train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels = train_test_data(input_cov, input_lapl, class_dict, upper)
+    train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels = train_test_data(input_cov, input_lapl, class_dict, upper, revert, over_conn)
     # Turn into a set with the label to feed the dataloader and oversample the least represented class
     trainset, testset = to_set(train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels)
-
+    print('Len train cov : ',len(train_cov),', lapl : ',len(train_lapl),'\n')
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
@@ -261,6 +303,6 @@ if __name__ == '__main__':
     compute_accuracy(testloader, CNN, last_loss, classes, plot)
 
     if save_model : 
-        torch.save(CNN, 'classifier/low_lapl_50_upper_CNN.pt')
+        torch.save(CNN, 'classifier/test_dual_CNN.pt')
 
     print('\n...Done\n')

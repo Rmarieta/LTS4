@@ -18,7 +18,25 @@ from sklearn.model_selection import cross_val_score, KFold
 import math
 import random
 
-def load_graphs(input_dir, class_dict, is_covariance) :
+def over_connected(graph, upper, is_cov, revert) :
+
+    G = graph.flatten()
+    cross_thr, full_thr = 90, 90
+    # No such over-connected graphs in covariance matrices and not same thresholds with Laplacian (revert==True)
+    if is_cov or revert : 
+        return False
+    # If on full symmetric matrix, the threshold count of pixels has to be doubled
+    if not upper :
+        cross_thr = 2*cross_thr
+        full_thr = 2*full_thr
+    if (G > 0.6).sum() >= cross_thr :
+        return True
+    elif (G > 0.4).sum() >= full_thr : 
+        return True
+    else : 
+        return False
+
+def load_graphs(input_dir, class_dict, is_covariance, over_conn) :
 
     data, data_labels = [], [] # data containing the graphs and data_labels the associated seizure type labels
 
@@ -31,19 +49,23 @@ def load_graphs(input_dir, class_dict, is_covariance) :
                 # To convert to Laplacian (if intended), diagonal would need to be included in flattened output
                 # graph = np.diag(np.sum(graph,axis=1))-graph
 
-                graph = graph[np.triu_indices(20, k = 1)]
+                graph = graph/np.amax(graph.flatten())
+                
+                if over_conn : is_over_conn = over_connected(graph, upper=False, is_cov=is_covariance, revert=False)
+                else : is_over_conn = False
 
-                if is_covariance : graph = graph/np.amax(graph.flatten())
+                if not is_over_conn :
+                    graph = graph[np.triu_indices(20, k = 1)]
 
-                data.append(graph.flatten()) # graph has to be flattened to be fed to the classifier
-                data_labels.append(szr_label)
+                    data.append(graph.flatten()) # graph has to be flattened to be fed to the classifier
+                    data_labels.append(szr_label)
 
     return np.array(data), np.array(data_labels)
 
-def train_test_data(input_dir, class_dict, is_covariance) :
+def train_test_data(input_dir, class_dict, is_covariance, over_conn) :
 
-    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict, is_covariance)
-    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict, is_covariance)
+    train, train_labels = load_graphs(os.path.join(input_dir,'train'), class_dict, is_covariance, over_conn)
+    test, test_labels = load_graphs(os.path.join(input_dir,'dev'), class_dict, is_covariance, over_conn)
 
     return train, test, train_labels, test_labels
 
@@ -54,11 +76,9 @@ def oversample(data, labels) :
     # Oversampling (train set only) to have balanced classification without dropping information
     PD = pd.DataFrame(labels,columns=['label'])
     no_0, no_1 = len(PD[PD['label']==0]), len(PD[PD['label']==1])
-    print(no_0, ' vs ', no_1)
 
+    # Multiply the dataset by this ratio, then add (no_0 - R*no_1) randomly selected entries from the smallest dataset
     R = math.floor(no_0/no_1)
-    print(R) # Multiply the dataset by this ratio, then add (no_0 - R*no_1) randomly selected entries from the smallest dataset
-    print(no_0 - R*no_1)
 
     trainset = []
     for i in range(len(data)) :
@@ -78,17 +98,16 @@ def oversample(data, labels) :
 
     PD = pd.DataFrame(os_labels,columns=['label'])
     no_0, no_1 = len(PD[PD['label']==0]), len(PD[PD['label']==1])
-    print(no_0, ' vs ', no_1)
 
     return os_data, os_labels
 
-def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot, balanced) :
+def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot, balanced, over_conn) :
 
     class_dict = {}
     for i, szr_type in enumerate(szr_types) :
         class_dict[szr_type] = i
     
-    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_covariance)
+    train, test, train_labels, test_labels = train_test_data(input_dir, class_dict, is_covariance, over_conn)
     
     # Oversample the under-represented class (only relevant on training data)
     if balanced : 
@@ -153,8 +172,7 @@ def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot, balance
         
         print(f"{k}-Fold Cross-Validation\n\nAccuracy of each split on training data with '{algo}' :\n{result}\n")
         print(f"Avg accuracy: {result.mean()}")
-
-    
+  
 if __name__ == '__main__':
     
     # Run : python .\classifier\graph_classifier.py --graph_dir './data/v1.5.2/graph_avg_1_5' --seizure_types 'FNSZ' 'GNSZ' --algo 'logit' --cross_val False
@@ -176,9 +194,9 @@ if __name__ == '__main__':
     parser.add_argument('--is_cov',default=False, help="set to True (or 1) if the graphs used are cov matrices", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--plot',default=False, help="set to True if not on the cluster to plot the confusion matrix", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--balanced',default=True, help="set to True to oversample under-represented class", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--over_conn',default=False, help="set to True to remove over-connected graphs", type=lambda x: (str(x).lower() in ['true','1']))
 
     args = parser.parse_args()
-    #parser.print_help()
 
     graph_dir = args.graph_dir
     szr_types = args.seizure_types
@@ -187,11 +205,12 @@ if __name__ == '__main__':
     is_covariance = args.is_cov
     plot = args.plot
     balanced = args.balanced
+    over_conn = args.over_conn
 
     if algo not in implemented_algos :
         print(f"The selected classification algorithm ('"+algo+"') is not available")
         exit()
 
-    classify(graph_dir, szr_types, algo, cross_val, is_covariance, plot, balanced)
+    classify(graph_dir, szr_types, algo, cross_val, is_covariance, plot, balanced, over_conn)
 
     print('\n\nDONE\n\n')
