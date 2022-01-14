@@ -261,7 +261,7 @@ if __name__ == '__main__':
     trainset, testset = to_set(train, test, train_labels, test_labels)
     
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=True, num_workers=2)
 
     # Initialise convolutional neural network
     CNN = Net()

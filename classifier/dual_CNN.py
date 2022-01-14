@@ -15,7 +15,6 @@ import random
 import seaborn as sns
 import re
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
-import shap
 
 def over_connected(graph, upper, is_cov) :
 
@@ -435,7 +434,9 @@ if __name__ == '__main__':
     
     images, y_pred, y_true = compute_accuracy(testloader, CNN, last_loss, classes, plot)
 
-    if explain_model : explain_channels(images, y_true, y_pred, CNN, plot, classes)
+    if explain_model : 
+        import shap
+        explain_channels(images, y_true, y_pred, CNN, plot, classes)
 
     if save_model and not explain_model : 
         torch.save(CNN, 'classifier/test_dual_CNN.pt')
