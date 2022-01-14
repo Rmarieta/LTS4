@@ -13,7 +13,9 @@ import pandas as pd
 import math
 import random
 import seaborn as sns
+import re
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay, f1_score
+import shap
 
 def over_connected(graph, upper, is_cov) :
 
@@ -193,6 +195,7 @@ def compute_accuracy(testloader, CNN, last_loss, classes, plot) :
     correct = 0
     total = 0
 
+    images = []
     y_pred, y_true = [], []
 
     # Prepare to count predictions for each class
@@ -210,6 +213,7 @@ def compute_accuracy(testloader, CNN, last_loss, classes, plot) :
             # The class with the highest energy is what we choose as prediction
             _, predicted = torch.max(outputs.data, 1)
             
+            images.extend([x.detach().numpy() for x in X_test])
             y_true.extend(labels.tolist())
             y_pred.extend(predicted.tolist())
 
@@ -245,7 +249,123 @@ def compute_accuracy(testloader, CNN, last_loss, classes, plot) :
         plt.title('Confusion matrix')
         plt.ylabel('True label'); plt.xlabel('Predicted label')
         plt.tight_layout()
-        plt.show()
+    
+    return images, y_pred, y_true
+
+def keep_adj(shap_numpy, test_numpy, x) :
+    # x = 0 for cov, x = 1 for adjacency matrix as data with two channels, and reshape
+    shap_numpy_adj= [shap_numpy[i][:,:,:,x].reshape((shap_numpy[0].shape[0],20,20,1)) for i in range(len(shap_numpy))]
+    test_numpy_adj = test_numpy[:,:,:,x].reshape((test_numpy.shape[0],20,20,1))
+
+    return shap_numpy_adj, test_numpy_adj
+
+def plot_ex_shap_mask(images, idx, e, y_true, classes) :
+
+    tries = random.sample(idx, 2)
+    test_images = images[tries]
+
+    shap_values_short = e.shap_values(test_images)
+
+    shap_numpy_short = [np.swapaxes(np.swapaxes(s, 1, -1), 1, 2) for s in shap_values_short]
+    test_numpy_short = np.swapaxes(np.swapaxes(test_images.numpy(), 1, -1), 1, 2)
+
+    im_names = np.vectorize(lambda x : classes[x])([y_true[j] for j in tries]).tolist()
+    # Add im_namees text to the left of the figure
+    labels = np.array(len(test_images)*[classes])
+
+    shap_numpy_short_adj, test_numpy_short_adj =keep_adj(shap_numpy_short, test_numpy_short, x=1)
+
+    # plot the feature attributions
+    print('\nTrue class of shap examples on the left (top to bottom) :',im_names,'\n')
+    shap.image_plot(shap_numpy_short_adj, -test_numpy_short_adj, labels=labels, labelpad=20)
+
+def class_shap_pixels(class_shaps) :
+
+    shaps = class_shaps
+    for i in range(len(class_shaps)) :
+        
+        # Detect all the pixels that show a positive 
+        shaps[i] = np.sign(shaps[i])
+        # ReLU the matrix
+        shaps[i] = np.maximum(shaps[i], 0)
+
+    # Sum all the shap arrays into one
+    graph = np.sum(shaps,axis=0)
+
+    return graph/np.amax(graph.flatten())
+
+def top_channel_pairs(channels, S) :
+
+    P = np.empty((20,20), dtype=object)
+    for i in range(P.shape[0]) :
+        for j in range(P.shape[1]) :
+            P[i,j] = channels[i]+' x '+channels[j]
+
+    top_idx_flat = np.argsort(S.flatten())[::-1] # In descending order, highest-valued pixel first
+    return P.flatten()[top_idx_flat]
+
+def dict_count_channels(channels, S) :
+    ch_count = {ch: 0 for ch in channels}
+    # Increase count of all channels appearing in the S matrix
+    for i in range(20) :
+        for j in range(20) :
+            ch_count[channels[i]] += S[i,j]
+            ch_count[channels[j]] += S[i,j]
+    # Sort the items, highest count first
+    return dict(sorted(ch_count.items(), key=lambda item: item[1], reverse=True))
+
+def explain_channels(images, y_true, y_pred, CNN, plot, classes) :
+
+    # Turn the list to a tensor
+    images = torch.tensor(np.array(images))
+
+    # Find matching indices between y_true and y_pred and only pick test images amongst those 
+    idx = [i for i in range(len(y_true)) if y_true[i]==y_pred[i]]
+
+    background = images[idx] # Keep all images correctly classified by the trained model
+
+    e = shap.DeepExplainer(CNN, background)
+
+    if plot : plot_ex_shap_mask(images, idx, e, y_true, classes)
+
+    shap_values = e.shap_values(background) # Computationally heavy on all images
+    # Only keeping the channel with the adjacency graphs
+    shap_numpy_adj = [np.swapaxes(np.swapaxes(s, 1, -1), 1, 2)[:,:,:,1] for s in shap_values]
+
+    # Retrieve the names of the 20 channels and their order to relate our graphs to the brain connectivity
+    parameters = pd.read_csv('./data_preparation/parameters.csv', index_col=['parameter'])
+    channels = np.array(re.split(';',str(parameters.loc['montage']['value'])))
+
+    S_list = []
+
+    for binary_C, C in enumerate(classes) :
+
+        # Indices of elements of idx, which are themselves indices of elements of y_true of class 'C'
+        idx_C = [i for i  in range(len(idx)) if y_true[idx[i]]==binary_C]
+        # Select the arrays of SHAP values that explain the impact on the classification output 'C', and only for the graphs that were rightly classified as 'C'
+        C_shaps = shap_numpy_adj[binary_C][idx_C]
+        
+        # Compute the summed up SHAP output on all graphs for each class so as to have one graph that sums it all up
+        S_C = class_shap_pixels(C_shaps)
+        S_list.append(S_C)
+
+        # Sort the channel pairs according to highest pixel value
+        print('For class ',C,':\n\nTop 6 channel pairs that resulted in the highest SHAP pixel value :\n',top_channel_pairs(channels, S_C)[:6],'\n')
+
+        # Sort the channels according to occurence in the S pixels
+        ch_count_C = dict_count_channels(channels, S_C)
+        print('For class ',C,':\n\nChannels sorted in function of their contribution to the SHAP summed up graph :\n',list(ch_count_C.keys()),'\n')
+    
+    # Plot the summed up matrix with the SHAP values for each class
+    if plot :
+        fig, ax = plt.subplots(nrows=1, ncols=len(classes))
+        sns.set_theme()
+        for i in range(len(classes)) :
+            ax[i].imshow(S_list[i], vmin=0.75, vmax=1, cmap='Reds')
+            ax[i].set_title(classes[i])
+            ax[i].grid(False)
+
+        fig.suptitle('Overall thresholded positive contribution to SHAP values by all pixels', y=0.9)
 
 if __name__ == '__main__':
 
@@ -256,12 +376,15 @@ if __name__ == '__main__':
     parser.add_argument('--input_lapl', default='./data/v1.5.2/graph_lapl_nolow', help='path to input laplacian graphs')
     parser.add_argument('--plot',default=False, help="set to True if not on the cluster to plot", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--nb_epochs',default=10, help="number of epochs for CNN training", type=lambda x: int(str(x)))
-    parser.add_argument('--batch_size',default=50, help="batch size for the CNN dataloader", type=lambda x: int(str(x)))
+    parser.add_argument('--batch_size',default=10, help="batch size for the CNN dataloader", type=lambda x: int(str(x)))
     parser.add_argument('--l_rate',default=0.0001, help="learning rate for the CNN", type=lambda x: float(str(x)))
     parser.add_argument('--upper',default=False, help="set to True to only keep upper triangle of symmetric graph", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--save_model',default=False, help="set to True to save the CNN", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--revert',default=False, help="set to True to revert the adjacency matrix to Laplacian", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--over_conn',default=False, help="set to True to remove over-connected graphs", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--explain_model',default=False, help="set to True to run SHAP explainability analysis on the model at --input_model", type=lambda x: (str(x).lower() in ['true','1']))
+    parser.add_argument('--input_model', default='./classifier/model_dual_CNN.pt', help='path to input model if --explain_model is set to True')
+
     
     args = parser.parse_args()
     input_cov = args.input_cov
@@ -274,6 +397,8 @@ if __name__ == '__main__':
     save_model = args.save_model
     revert = args.revert
     over_conn = args.over_conn
+    explain_model = args.explain_model
+    input_model = args.input_model
 
     classes = ['FNSZ','GNSZ']
 
@@ -286,23 +411,35 @@ if __name__ == '__main__':
     trainset, testset = to_set(train_cov, train_lapl, test_cov, test_lapl, train_labels, test_labels)
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=True, num_workers=2)
 
-    # Initialise convolutional neural network
-    CNN = Net()
-    CNN = CNN.float()
-    print(CNN)
+    # if explain_model is selected, use of the already trained model mentioned in input_model
+    if not explain_model : 
+        # Initialise convolutional neural network
+        CNN = Net()
+        CNN = CNN.float()
+        print(CNN)
 
-    loss_criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(CNN.parameters(), lr=gamma)
+        loss_criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(CNN.parameters(), lr=gamma)
 
-    print('\nStart of training...\n')
-    last_loss = train_model(CNN, trainloader, batch_size, optimizer, loss_criterion, gamma, nb_epochs, plot)
-    print('\n...Training done\n\nComputation of accuracy on test data...')
+        print('\nStart of training...\n')
+        last_loss = train_model(CNN, trainloader, batch_size, optimizer, loss_criterion, gamma, nb_epochs, plot)
+        print('\n...Training done\n\nComputation of accuracy on test data...')
 
-    compute_accuracy(testloader, CNN, last_loss, classes, plot)
+    else :
+        # Retrieve already trained model
+        CNN = torch.load(input_model)
+        CNN.eval()
+        last_loss = 0
+    
+    images, y_pred, y_true = compute_accuracy(testloader, CNN, last_loss, classes, plot)
 
-    if save_model : 
+    if explain_model : explain_channels(images, y_true, y_pred, CNN, plot, classes)
+
+    if save_model and not explain_model : 
         torch.save(CNN, 'classifier/test_dual_CNN.pt')
+    
+    if plot : plt.show()
 
     print('\n...Done\n')
