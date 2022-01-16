@@ -119,70 +119,73 @@ def classify(input_dir, szr_types, algo, cross_val, is_covariance, plot, balance
     test, test_labels = shuffle(test, test_labels)
 
     # Initialisation of the selected classification model
+    ALGS = ['SVM', 'bayes', 'logit']
 
-    if algo == 'bayes' : # Gaussian Naive Bayes
-        # Supposes that all the features are independent (prediction can be poor when they're not which might be the case here)
-        model = GaussianNB()
+    for algo in ALGS :
 
-    elif algo == 'kNN' : # k-Nearest Neighbours
-        model = KNeighborsClassifier(n_neighbors=3)
+        if algo == 'bayes' : # Gaussian Naive Bayes
+            # Supposes that all the features are independent (prediction can be poor when they're not which might be the case here)
+            model = GaussianNB()
 
-    elif algo == 'SVM' : # Support vector machine
-        model = make_pipeline(StandardScaler(), SVC(gamma='auto'))
+        elif algo == 'kNN' : # k-Nearest Neighbours
+            model = KNeighborsClassifier(n_neighbors=3)
 
-    elif algo == 'tree' : # Decision tree
-        model = DecisionTreeClassifier()
+        elif algo == 'SVM' : # Support vector machine
+            model = make_pipeline(StandardScaler(), SVC(gamma='auto'))
 
-    else : # Multinomial logistic regression (algo == 'logit')
-        model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000)
-    
-    if not cross_val : # We train and test the model normally
-    
-        # Training of the classifier
-        model.fit(train, train_labels)
-    
-        # Prediction of the classes
-        train_preds = model.predict(train)
-        test_preds = model.predict(test)
+        elif algo == 'tree' : # Decision tree
+            model = DecisionTreeClassifier()
+
+        else : # Multinomial logistic regression (algo == 'logit')
+            model = LogisticRegression(multi_class='multinomial', solver='lbfgs', max_iter=1000)
         
-        F1 = 100 * f1_score(test_labels, test_preds, average='weighted')
-
-        # Evaluate accuracy of the classifier
-        print(f"({algo} classifier) \
-            \nWeigthed F1-score : {round(F1,2)} %")
-
-        acc_dict = {str(j): 0 for j in range(len(szr_types))}
-
-        for i in range(len(test_preds)) :
-            if test_preds[i] == test_labels[i] : acc_dict[str(test_labels[i])] += 1
-
-        # Print accuracy for each class
-        for i, szr_type in enumerate(szr_types) :
-
-            acc = int(acc_dict[str(i)])/len([x for x in test_labels if x==i])
-            print(f'Accuracy for {szr_type} : {100*round(acc,2)} %')
-
-        C = confusion_matrix(test_labels,test_preds)
-        print(f'\nConfusion matrix :\n{C}')
-
-        df_cm = pd.DataFrame(C, index=szr_types, columns=szr_types)
+        if not cross_val : # We train and test the model normally
         
-        if plot :
-            plt.figure(figsize=(4.3,4))
-            sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g', cbar=False)
-            plt.title(f'Confusion ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)\nWeighted F1-score : {round(F1,2)} %')
-            plt.ylabel('True label'); plt.xlabel('Predicted label')
-            plt.tight_layout()
-            plt.show()
+            # Training of the classifier
+            model.fit(train, train_labels)
+        
+            # Prediction of the classes
+            train_preds = model.predict(train)
+            test_preds = model.predict(test)
 
-    else : # We compute the accuracy of the model with K-fold cross-validation
-        
-        k = 5
-        kf = KFold(n_splits=k, shuffle=True)
-        result = cross_val_score(model , train, train_labels, cv=kf)
-        
-        print(f"{k}-Fold Cross-Validation\n\nAccuracy of each split on training data with '{algo}' :\n{result}\n")
-        print(f"Avg accuracy: {result.mean()}")
+            F1 = 100 * f1_score(test_labels, test_preds, average='weighted')
+
+            # Evaluate accuracy of the classifier
+            print(f"{algo} classifier : \
+                \nWeigthed F1-score : {round(F1,2)} %")
+
+            acc_dict = {str(j): 0 for j in range(len(szr_types))}
+
+            for i in range(len(test_preds)) :
+                if test_preds[i] == test_labels[i] : acc_dict[str(test_labels[i])] += 1
+
+            # Print accuracy for each class
+            for i, szr_type in enumerate(szr_types) :
+
+                acc = int(acc_dict[str(i)])/len([x for x in test_labels if x==i])
+                print(f'Accuracy for {szr_type} is: {100*round(acc,2)} %')
+
+            C = confusion_matrix(test_labels,test_preds)
+            #print(f'Confusion matrix :\n{C}\n')
+
+            df_cm = pd.DataFrame(C, index=szr_types, columns=szr_types)
+            
+            if plot :
+                plt.figure(figsize=(4.3,4))
+                sn.heatmap(df_cm, annot=True, cmap='Blues', fmt='g', cbar=False)
+                plt.title(f'Confusion ({algo}, train/test : {100*round(accuracy_score(train_labels, train_preds),2)}/{100*round(accuracy_score(test_labels, test_preds),2)} %)\nWeighted F1-score : {round(F1,2)} %')
+                plt.ylabel('True label'); plt.xlabel('Predicted label')
+                plt.tight_layout()
+                plt.show()
+
+        else : # We compute the accuracy of the model with K-fold cross-validation
+            
+            k = 5
+            kf = KFold(n_splits=k, shuffle=True)
+            result = cross_val_score(model , train, train_labels, cv=kf)
+            
+            print(f"{k}-Fold Cross-Validation\n\nAccuracy of each split on training data with '{algo}' :\n{result}\n")
+            print(f"Avg accuracy: {result.mean()}")
   
 if __name__ == '__main__':
     
