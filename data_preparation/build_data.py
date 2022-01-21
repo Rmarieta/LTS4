@@ -26,7 +26,7 @@ from time import sleep
 """
 This file first generates the data dict out of the excel file (for both dev and train sets using the multiple sheets
 from the excel file) and loads all the .edf files of the dataset into pickle files (that will be located in 
-multiple folders in data/v1.5.2/input)
+multiple folders in data/v1.5.2/raw_samples)
 """
 
 parameters = pd.read_csv('data_preparation/parameters.csv', index_col=['parameter'])
