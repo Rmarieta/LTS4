@@ -1,6 +1,6 @@
 # Building and Explainability Analysis of a Seizure Classifier from EEG Recordings Using Graph Signal Processing
 
-This repository contains the code for the implementation of the classifier and its interpretation described in [a relative link](report.pdf) <a>LINK TO REPORT</a>. The different parts of the implementation involve the following steps :
+This repository contains the code for the implementation of the classifier and its interpretation described in the [project report](report.pdf). The different parts of the implementation involve the following steps :
 
 <ul>
 <li>Extraction and formatting of the seizures from the dataset. Run <code>data_preparation/build_data.py</code> to execute this step.</li>
