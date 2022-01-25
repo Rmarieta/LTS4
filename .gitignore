@@ -1,2 +1,7 @@
-data/
-cluster_output/
+data/v1.5.2/*
+cluster_output/*
+
+# But not these files/directories
+!.gitignore
+!data/v1.5.2/graph_cov_low_100
+!data/v1.5.2/graph_lapl_low_50
