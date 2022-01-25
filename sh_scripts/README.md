@@ -3,7 +3,16 @@
 In case you're either on Linux or on the SCITAS EPFL servers, you can use the provided scripts to automate the download of the dataset (v1.5.2). 
 Downloading the dataset requires a password (<code>nedc_resources</code>) that you can acquire through the website. The download sometimes crashes and to avoid having to re-enter the password multiple times, a <code>run_all.sh</code> script is provided. 
 
-<code>run_all.sh</code> can be executed running <code>sh run_all.sh</code>. You might first need to execute the permission to run these shell scripts with <code>chmod u+r+x run_all.sh</code> and the same for <code>rsync_nedc.sh</code>. <code>run_all.sh</code> runs an infinite loop that has to be manually stopped with <code>Ctrl+C</code> once the download is finished. This is useful in case the password problem occurs. Maybe first try to remove the while loop and only leave <code>expect rsync_answer.exp tuh_eeg_seizure/v1.5.2 data/v1.5.2 nedc_resources</code> in the script. If it works, no need to run the loop. The dataset will be saved in data/v1.5.2.
+<code>run_all.sh</code> can be executed running :
+```
+sh run_all.sh
+```
+You might first need to execute the permission to run these shell scripts with :
+```
+chmod u+r+x run_all.sh
+```
+
+ Same for <code>rsync_nedc.sh</code>. <code>run_all.sh</code> runs an infinite loop that has to be manually stopped with <code>Ctrl+C</code> once the download is finished. This is useful in case the password problem occurs. Maybe first try to remove the while loop and only leave <code>expect rsync_answer.exp tuh_eeg_seizure/v1.5.2 data/v1.5.2 nedc_resources</code> in the script. If it works, no need to run the loop. The dataset will be saved in data/v1.5.2.
 
 The path to the dataset might change, as it already happened once in the last 6 months, so you might have to make sure the <code>tuh_eeg_seizure/v1.5.2</code> argument in the except command is up to date.
 

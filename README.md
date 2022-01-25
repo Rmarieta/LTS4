@@ -38,7 +38,7 @@ source ../rma_env/bin/activate
 pip install --no-cache-dir numpy
 ```
 
-The file <code>requirements.txt</code> can be run with the command below to install the dependencies. The command <code>--no-cache-dir</code> might only be required on the cluster. Note that as explained in the explainability section of <code>classifier/README.md</code>, the version of numpy on the cluster might be too old and you might experience an error when updating it with the below <code>requirements.txt</code>, check what's explained in <code>classifier/README.md</code> in case that happens.
+The file <code>requirements.txt</code> can be run with the command below to install the dependencies. The command <code>--no-cache-dir</code> might only be required on the cluster. Note that as explained in the explainability section of <code>classifier/README.md</code>, the version of numpy on the cluster might be too old and you might experience an error when updating it with the below <code>requirements.txt</code>, check what's explained at the bottom of <code>classifier/README.md</code> in case that happens.
 ```
 pip install --no-cache-dir -r requirements.txt
 ```
