@@ -30,7 +30,7 @@ virtualenv --system-site-packages env_name
 source env_test/bin/activate
 ```
 
-To download packages on the cluster, you will have to create your virtual environment (<a>tutorial</a>) and download the required packages on your activated virtual environment. For example for numpy, run (in <code>home/LTS4/</code>) : 
+To download packages on the cluster, you will have to create your virtual environment (<a>tutorial</a>) and download the required packages on your activated virtual environment. For example for numpy, run (in <code>LTS4/</code>) : 
 ```
 # Activate your virtual environment (adapt with your env name)
 source ../rma_env/bin/activate
