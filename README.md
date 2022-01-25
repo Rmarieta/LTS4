@@ -19,14 +19,21 @@ The dataset can be easily downloaded using <em>Rsync</em> on Linux. The shell sc
 
 ## Set-up and Requirements
 
-Due to the high amount of data, high computational power might be required for some steps of the implementation, in particular the computation of the adjacency matrix, and the training of the classifier. For that reason, the SCITAS EPFL cluster was used to run the heavy scripts. Find <a>HEEERE</a> how to set-up your access to the cluster (<code>fidis.epfl.ch</code> works perfectly). When running a python script on the cluster, you first need to allocate the power and time desired for the run, therefore you will have to run the appropriate scripts in <code>scitas_run/</code> to run the python scripts instead of using the terminal command. The cluster does not offer the option to directly plot an output with <em>Matplotlib</em>, so you might need to transfer your outputs of the graph computation step on your local device to plot graphs or plot the available plots in the explainability step.
+Due to the high amount of data, high computational power might be required for some steps of the implementation, in particular the computation of the adjacency matrix, and the training of the classifier. For that reason, the SCITAS EPFL cluster was used to run the heavy scripts. 
+Find <a href="https://scitas-data.epfl.ch/confluence/display/DOC/Connecting+to+the+clusters#Connectingtotheclusters-Step-by-stepguide">here</a> how to set-up your access to the cluster (<code>fidis.epfl.ch</code> works perfectly) and <a href="https://scitas-data.epfl.ch/confluence/display/DOC/Using+the+clusters">here</a> how to use the clusters. If using VS Code, you can use the <em>Remote Explorer</em> extension to set-up the SSH connection and access the interface and your scripts on the cluster without having to navigate through them with the terminal. When running a python script on the cluster, you first need to allocate the power and time desired for the run, therefore you will have to run the appropriate scripts in <code>scitas_run/</code> to run the python scripts instead of using the terminal command. The cluster does not offer the option to directly plot an output with <em>Matplotlib</em>, so you might need to transfer your outputs of the graph computation step on your local device to plot graphs or plot the available plots in the explainability step.
 
-To download packages on the cluster, you will have to create your virtual environment (<a>tutorial</a>) and download the required packages on your activated virtual environment (run <code>source ../rma_env/bin/activate</code> in <code>home/LTS4/</code>) with the following command <code>pip install --no_cache_dir numpy</code> (e.g. for numpy).
+To download packages on the cluster, you will have to create your virtual environment (<a>tutorial</a>) and download the required packages on your activated virtual environment. For example for numpy, run (in <code>home/LTS4/</code>) : 
+```
+# Activate your virtual environment (adapt with your env name)
+source ../rma_env/bin/activate
+# Download the package (no_cache_dir option required on the cluster)
+pip install --no_cache_dir numpy
+```
 
-The following file : REQUIREMENTS.TXT is provided to download the required packages. ADD NUMPY UPGRADE STEP TO AVOID ISSUE WHEN IMPORTING SHAP !!!
-
-MODIFY gitignore TO INCLUDE data/v1.5.2 WITHOUT WHAT'S INSIDE !
-
+The file <code>requirements.txt</code> can be run with the command below to install the dependencies on your local device (some might have been forgotten).
+```
+pip install requirements.txt
+```
 
 ## Seizure Extraction
 
