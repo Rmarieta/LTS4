@@ -372,7 +372,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Build the graph CNN for classification')
     parser.add_argument('--input_cov', default='./data/v1.5.2/graph_cov_low_100', help='path to input covariance graphs')
-    parser.add_argument('--input_lapl', default='./data/v1.5.2/graph_lapl_nolow', help='path to input laplacian graphs')
+    parser.add_argument('--input_lapl', default='./data/v1.5.2/graph_lapl_low_50', help='path to input laplacian graphs')
     parser.add_argument('--plot',default=False, help="set to True if not on the cluster to plot", type=lambda x: (str(x).lower() in ['true','1']))
     parser.add_argument('--nb_epochs',default=10, help="number of epochs for CNN training", type=lambda x: int(str(x)))
     parser.add_argument('--batch_size',default=10, help="batch size for the CNN dataloader", type=lambda x: int(str(x)))

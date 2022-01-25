@@ -197,7 +197,7 @@ if __name__ == '__main__':
     known_args, _ = parser.parse_known_args()
     data_dir = known_args.data_dir
 
-    parser.add_argument('--graph_dir', default=os.path.join(data_dir,'v1.5.2/graph_output'), help='path to the computed graphs')
+    parser.add_argument('--graph_dir', default=os.path.join(data_dir,'v1.5.2/graph_lapl_low_50'), help='path to the computed graphs')
     parser.add_argument('--seizure_types',default=['FNSZ','GNSZ'], help="types of seizures to include in the classification, in the form --seizure_types 'BG' 'FNSZ' 'GNSZ'", nargs="+")
     parser.add_argument('--algo',default='bayes', help="pick the classification algorithm in \
          the following : "+str(implemented_algos))
