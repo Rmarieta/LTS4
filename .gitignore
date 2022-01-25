@@ -5,3 +5,4 @@ cluster_output/*
 !.gitignore
 !data/v1.5.2/graph_cov_low_100
 !data/v1.5.2/graph_lapl_low_50
+!cluster_output/empty.out
