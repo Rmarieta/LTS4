@@ -22,17 +22,25 @@ The dataset can be easily downloaded using <em>Rsync</em> on Linux. The shell sc
 Due to the high amount of data, high computational power might be required for some steps of the implementation, in particular the computation of the adjacency matrix, and the training of the classifier. For that reason, the SCITAS EPFL cluster was used to run the heavy scripts. 
 Find <a href="https://scitas-data.epfl.ch/confluence/display/DOC/Connecting+to+the+clusters#Connectingtotheclusters-Step-by-stepguide">here</a> how to set-up your access to the cluster (<code>fidis.epfl.ch</code> works perfectly) and <a href="https://scitas-data.epfl.ch/confluence/display/DOC/Using+the+clusters">here</a> how to use the clusters. If using VS Code, you can use the <em>Remote Explorer</em> extension to set-up the SSH connection and access the interface and your scripts on the cluster without having to navigate through them with the terminal. When running a python script on the cluster, you first need to allocate the power and time desired for the run, therefore you will have to run the appropriate scripts in <code>scitas_run/</code> to run the python scripts instead of using the terminal command. The cluster does not offer the option to directly plot an output with <em>Matplotlib</em>, so you might need to transfer your outputs of the graph computation step on your local device to plot graphs or plot the available plots in the explainability step.
 
+```
+# To create the virtual environment on the cluster
+module load gcc/8.4.0 python/3.7.7
+virtualenv --system-site-packages env_name
+# To activate the environment
+source env_test/bin/activate
+```
+
 To download packages on the cluster, you will have to create your virtual environment (<a>tutorial</a>) and download the required packages on your activated virtual environment. For example for numpy, run (in <code>home/LTS4/</code>) : 
 ```
 # Activate your virtual environment (adapt with your env name)
 source ../rma_env/bin/activate
 # Download the package (no_cache_dir option required on the cluster)
-pip install --no_cache_dir numpy
+pip install --no-cache-dir numpy
 ```
 
-The file <code>requirements.txt</code> can be run with the command below to install the dependencies on your local device (some might have been forgotten).
+The file <code>requirements.txt</code> can be run with the command below to install the dependencies. The command <code>--no-cache-dir</code> might only be required on the cluster. Note that as explained in the explainability section of <code>classifier/README.md</code>, the version of numpy on the cluster might be too old and you might experience an error when updating it with the below <code>requirements.txt</code>, check what's explained in <code>classifier/README.md</code> in case that happens.
 ```
-pip install requirements.txt
+pip install --no-cache-dir -r requirements.txt
 ```
 
 ## Seizure Extraction
