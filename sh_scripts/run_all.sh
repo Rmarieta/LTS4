@@ -6,6 +6,6 @@
 while :
 do
 
-    expect rsync_answer.exp tuh_eeg_seizure/v1.5.2 data/v1.5.2 nedc_resources
+    expect rsync_answer.exp eeg/tuh_eeg_seizure/v1.5.2 ../data nedc_resources
 
 done
