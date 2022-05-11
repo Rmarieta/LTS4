@@ -1,4 +1,4 @@
-# Building and Explainability Analysis of a Seizure Classifier from EEG Recordings Using Graph Signal Processing
+# Building and Interpretation of a Seizure Classifier from EEG Recordings Using Graph Signal Processing
 
 This repository contains the code for the implementation of the classifier and its interpretation described in the [project report](report.pdf). The different parts of the implementation involve the following steps :
 
