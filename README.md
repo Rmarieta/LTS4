@@ -9,6 +9,10 @@ This repository contains the code for the implementation of the classifier and i
 <li>The explainability analysis.</li>
 </ul>
 
+<p align='center'>
+<img src="/report.png" alt="image" width="60%"/>
+</p>
+
 ## Dataset
 
 Read <code>sh_scripts/README.md</code> to find out how to download the dataset.
