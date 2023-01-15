@@ -10,7 +10,9 @@ This repository contains the code for the implementation of the classifier and i
 </ul>
 
 <p align='center'>
-<img src="/report.png" alt="image" width="60%"/>
+<a href="/report.pdf">
+<img src="/report_screenshot.png" alt="image" width="40%"/>
+</a>
 </p>
 
 ## Dataset
